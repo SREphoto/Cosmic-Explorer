@@ -1,0 +1,94 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public user profile and account details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "lastActiveAt": { "type": "string" },
+        "playerLevel": { "type": "number" },
+        "highScore": { "type": "number" },
+        "maxAltitudeOverall": { "type": "number" },
+        "totalPlanetsAllTime": { "type": "number" },
+        "multiplayerWins": { "type": "number" },
+        "multiplayerMatches": { "type": "number" }
+      },
+      "required": ["userId", "displayName", "createdAt"]
+    },
+    "GameSave": {
+      "title": "GameSave",
+      "description": "User persistent game progress, currency, unlocks and stats",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "savedData": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "savedData", "updatedAt"]
+    },
+    "MultiplayerRoom": {
+      "title": "MultiplayerRoom",
+      "description": "Real-time 1v1 battle and race match rooms",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomCode": { "type": "string" },
+        "mode": { "type": "string", "enum": ["BATTLE", "RACE"] },
+        "status": { "type": "string", "enum": ["WAITING", "STARTING", "ACTIVE", "FINISHED"] },
+        "host": { "type": "object" },
+        "guest": { "type": "object" },
+        "seed": { "type": "number" },
+        "targetAltitude": { "type": "number" },
+        "winnerId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "claimedPlanets": { "type": "object" },
+        "traps": { "type": "object" },
+        "hostState": { "type": "object" },
+        "guestState": { "type": "object" },
+        "events": { "type": "array" }
+      },
+      "required": ["id", "roomCode", "mode", "status", "host", "createdAt", "updatedAt"]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Global cosmic explorer high score record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "score": { "type": "number" },
+        "altitude": { "type": "number" },
+        "maxCombo": { "type": "number" },
+        "costumeId": { "type": "string" },
+        "rocketSkinId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["userId", "displayName", "score", "altitude", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "description": "User profiles indexed by UID",
+      "entity": "UserProfile"
+    },
+    "saves": {
+      "description": "Persistent player saves indexed by UID",
+      "entity": "GameSave"
+    },
+    "rooms": {
+      "description": "Active and completed 1v1 multiplayer game rooms",
+      "entity": "MultiplayerRoom"
+    },
+    "leaderboards": {
+      "description": "Global player score entries",
+      "entity": "LeaderboardEntry"
+    }
+  }
+}

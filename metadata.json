@@ -1,0 +1,8 @@
+{
+  "name": "Remix LittleJumperv2",
+  "description": "Endless orbital jumper game with physics, power-ups, quests, shop, and real-time cosmic aesthetics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

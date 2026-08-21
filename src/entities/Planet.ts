@@ -1,5 +1,6 @@
 import { PlanetData, PlanetType } from '../types/game';
 import { SurfaceHazard } from './SurfaceHazard';
+import { spriteAtlas } from '../core/SpriteAtlas';
 
 export class Planet implements PlanetData {
   id: string;
@@ -171,7 +172,20 @@ export class Planet implements PlanetData {
       ctx.restore();
     }
 
-    // 5. Procedural 3D Volumetric Spherical Texture Shader Body
+    const planetImg = spriteAtlas.planet(this.type);
+    const usedSprite = !!planetImg;
+    if (planetImg) {
+      const size = this.radius * 2.12;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 1.04, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(planetImg, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+
+    // 5. Procedural 3D Volumetric Spherical Texture Shader Body (fallback)
+    if (!usedSprite) {
     const bodyGrad = ctx.createRadialGradient(
       -this.radius * 0.38,
       -this.radius * 0.38,
@@ -240,6 +254,66 @@ export class Planet implements PlanetData {
       bodyGrad.addColorStop(0.45, '#38bdf8');
       bodyGrad.addColorStop(0.8, '#0284c7');
       bodyGrad.addColorStop(1, '#082f49');
+    } else if (this.type === 'OCEAN') {
+      bodyGrad.addColorStop(0, '#e0f2fe');
+      bodyGrad.addColorStop(0.18, '#38bdf8');
+      bodyGrad.addColorStop(0.48, '#0284c7');
+      bodyGrad.addColorStop(0.8, '#075985');
+      bodyGrad.addColorStop(1, '#082f49');
+    } else if (this.type === 'DESERT') {
+      bodyGrad.addColorStop(0, '#fff7ed');
+      bodyGrad.addColorStop(0.18, '#fdba74');
+      bodyGrad.addColorStop(0.48, '#d97706');
+      bodyGrad.addColorStop(0.8, '#9a3412');
+      bodyGrad.addColorStop(1, '#431407');
+    } else if (this.type === 'JUNGLE') {
+      bodyGrad.addColorStop(0, '#dcfce7');
+      bodyGrad.addColorStop(0.18, '#4ade80');
+      bodyGrad.addColorStop(0.48, '#16a34a');
+      bodyGrad.addColorStop(0.8, '#14532d');
+      bodyGrad.addColorStop(1, '#052e16');
+    } else if (this.type === 'STORM') {
+      bodyGrad.addColorStop(0, '#ffedd5');
+      bodyGrad.addColorStop(0.2, '#fb923c');
+      bodyGrad.addColorStop(0.5, '#c2410c');
+      bodyGrad.addColorStop(0.8, '#7c2d12');
+      bodyGrad.addColorStop(1, '#1c0a02');
+    } else if (this.type === 'TOXIC') {
+      bodyGrad.addColorStop(0, '#f7fee7');
+      bodyGrad.addColorStop(0.18, '#a3e635');
+      bodyGrad.addColorStop(0.48, '#65a30d');
+      bodyGrad.addColorStop(0.8, '#3f6212');
+      bodyGrad.addColorStop(1, '#1a2e05');
+    } else if (this.type === 'MOON') {
+      bodyGrad.addColorStop(0, '#f8fafc');
+      bodyGrad.addColorStop(0.2, '#cbd5e1');
+      bodyGrad.addColorStop(0.5, '#64748b');
+      bodyGrad.addColorStop(0.8, '#334155');
+      bodyGrad.addColorStop(1, '#0f172a');
+    } else if (this.type === 'AURORA') {
+      bodyGrad.addColorStop(0, '#ecfeff');
+      bodyGrad.addColorStop(0.2, '#67e8f9');
+      bodyGrad.addColorStop(0.5, '#22c55e');
+      bodyGrad.addColorStop(0.8, '#1e3a8a');
+      bodyGrad.addColorStop(1, '#020617');
+    } else if (this.type === 'FUNGAL') {
+      bodyGrad.addColorStop(0, '#fae8ff');
+      bodyGrad.addColorStop(0.2, '#e879f9');
+      bodyGrad.addColorStop(0.5, '#7c3aed');
+      bodyGrad.addColorStop(0.8, '#4c1d95');
+      bodyGrad.addColorStop(1, '#1e1b4b');
+    } else if (this.type === 'CLOUD') {
+      bodyGrad.addColorStop(0, '#fff7ed');
+      bodyGrad.addColorStop(0.2, '#fed7aa');
+      bodyGrad.addColorStop(0.5, '#fb923c');
+      bodyGrad.addColorStop(0.8, '#c2410c');
+      bodyGrad.addColorStop(1, '#7c2d12');
+    } else if (this.type === 'NEBULA') {
+      bodyGrad.addColorStop(0, '#fdf4ff');
+      bodyGrad.addColorStop(0.2, '#f0abfc');
+      bodyGrad.addColorStop(0.5, '#c026d3');
+      bodyGrad.addColorStop(0.8, '#6b21a8');
+      bodyGrad.addColorStop(1, '#3b0764');
     } else if (this.type === 'ASTEROID') {
       bodyGrad.addColorStop(0, '#fffbe0');
       bodyGrad.addColorStop(0.18, '#fef3c7');
@@ -410,9 +484,20 @@ export class Planet implements PlanetData {
     }
 
     ctx.restore();
+    }
 
     // 9. Surface Craters, Hazards, & Storybook Diorama Props
     this.surfaceDecorations.forEach((decor) => {
+      if (
+        usedSprite &&
+        (decor.type === 'CRATER' ||
+          decor.type === 'DAISY' ||
+          decor.type === 'TREE' ||
+          decor.type === 'HOUSE' ||
+          decor.type === 'TELESCOPE')
+      ) {
+        return;
+      }
       ctx.save();
       ctx.rotate(decor.angle);
 

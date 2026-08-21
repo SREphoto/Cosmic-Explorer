@@ -5,7 +5,6 @@ import {
   Sprout,
   Package,
   Wrench,
-  Sparkles,
   ShoppingBag,
   CheckCircle2,
   Lock,
@@ -44,12 +43,19 @@ import {
   GARDEN_SEEDS,
   CRAFTABLE_HOME_TOOLS,
   HOME_FURNITURE_CATALOG,
-  generateSpaceTravelerVisit
+  generateSpaceTravelerVisit,
+  homeUpgradeCostMultiplier,
+  gardenGrowthMultiplier,
+  gardenHarvestMultiplier,
+  hasCraftedTool,
+  calculateSkillBonuses
 } from '../core/Config';
 import { audioEngine } from '../core/AudioEngine';
 import { FirebaseService, auth } from '../core/firebase';
 import { StorageManager } from '../core/Storage';
 import { VisualGardenLayout } from './VisualGardenLayout';
+import { spriteAtlas, BIOME_SPRITES, FURNITURE_SPRITES, HABITAT_SPRITES, PLANT_SPRITES, TOOL_SPRITES, RESOURCE_SPRITES, STORAGE_SPRITE } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 
 interface HomePlanetModalProps {
   savedData: UserSavedData;
@@ -129,11 +135,12 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
           const seedConfig = GARDEN_SEEDS.find((s) => s.type === plot.seedType);
           if (!seedConfig) return plot;
 
-          const elapsedSec = (now - plot.plantedAtTimestamp) / 1000;
-          const progress = Math.min(1.0, elapsedSec / seedConfig.growthDurationSeconds);
+          const elapsedSec = (now - (plot.plantedAtTimestamp ?? plot.plantedAt ?? now)) / 1000;
+          const growthMult = gardenGrowthMultiplier(prev.craftedTools as Array<{ id: string; level?: number }>);
+          const progress = Math.min(1.0, elapsedSec / (seedConfig.growthDurationSeconds * growthMult));
           const isHarvestable = progress >= 1.0;
 
-          if (progress !== plot.growthProgress || isHarvestable !== plot.isHarvestable) {
+          if (progress !== (plot.growthProgress ?? 0) || isHarvestable !== plot.isHarvestable) {
             hasChanges = true;
             return {
               ...plot,
@@ -223,61 +230,90 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
         ctx.restore();
       }
 
-      // Planet Sphere Body
-      const bodyGrad = ctx.createRadialGradient(
-        cx - radius * 0.35,
-        cy - radius * 0.35,
-        radius * 0.1,
-        cx,
-        cy,
-        radius
-      );
-      bodyGrad.addColorStop(0, currentBiome.color);
-      bodyGrad.addColorStop(0.8, currentBiome.secondaryColor);
-      bodyGrad.addColorStop(1, '#090d16');
-
-      ctx.fillStyle = bodyGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Painted planet globe
+      const biomeSprite = spriteAtlas.biome(currentBiome.id);
+      if (biomeSprite) {
+        const size = radius * 2.12;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 1.03, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(biomeSprite, cx - size / 2, cy - size / 2, size, size);
+        ctx.restore();
+      } else {
+        const bodyGrad = ctx.createRadialGradient(
+          cx - radius * 0.35,
+          cy - radius * 0.35,
+          radius * 0.1,
+          cx,
+          cy,
+          radius
+        );
+        bodyGrad.addColorStop(0, currentBiome.color);
+        bodyGrad.addColorStop(0.8, currentBiome.secondaryColor);
+        bodyGrad.addColorStop(1, '#090d16');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Surface features & decorations
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
 
-      // Surface patches
-      for (let i = 0; i < 6; i++) {
-        const patchAngle = (i * Math.PI) / 3;
-        const px = Math.cos(patchAngle) * (radius * 0.6);
-        const py = Math.sin(patchAngle) * (radius * 0.6);
-        ctx.fillStyle = `${currentBiome.color}33`;
-        ctx.beginPath();
-        ctx.arc(px, py, radius * 0.28, 0, Math.PI * 2);
-        ctx.fill();
+      if (!biomeSprite) {
+        for (let i = 0; i < 6; i++) {
+          const patchAngle = (i * Math.PI) / 3;
+          const px = Math.cos(patchAngle) * (radius * 0.6);
+          const py = Math.sin(patchAngle) * (radius * 0.6);
+          ctx.fillStyle = `${currentBiome.color}33`;
+          ctx.beginPath();
+          ctx.arc(px, py, radius * 0.28, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
-      // Render Habitat Structure on surface
+      // Habitat structure
       const habitatDef = HABITAT_UPGRADES.find((h) => h.tier === homePlanet.habitatTier) || HABITAT_UPGRADES[0];
-      ctx.font = `${Math.floor(radius * 0.32)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(habitatDef.icon, 0, -radius - 12);
+      const habitatImg = spriteAtlas.habitat(homePlanet.habitatTier);
+      const habitatSize = Math.floor(radius * 0.55);
+      if (habitatImg) {
+        ctx.drawImage(habitatImg, -habitatSize / 2, -radius - habitatSize * 0.35, habitatSize, habitatSize);
+      } else {
+        ctx.font = `${Math.floor(radius * 0.32)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(habitatDef.icon, 0, -radius - 12);
+      }
 
-      // Render Storage Shed
+      // Storage shed
       const storageDef = STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0];
       const storageAngle = 1.3;
-      const sx = Math.cos(storageAngle) * (radius + 12);
-      const sy = Math.sin(storageAngle) * (radius + 12);
-      ctx.font = `${Math.floor(radius * 0.22)}px sans-serif`;
-      ctx.fillText(storageDef.icon, sx, sy);
+      const sx = Math.cos(storageAngle) * (radius + 8);
+      const sy = Math.sin(storageAngle) * (radius + 8);
+      const storageImg = spriteAtlas.get(STORAGE_SPRITE);
+      const storageSize = Math.floor(radius * 0.38);
+      if (storageImg) {
+        ctx.drawImage(storageImg, sx - storageSize / 2, sy - storageSize / 2, storageSize, storageSize);
+      } else {
+        ctx.font = `${Math.floor(radius * 0.22)}px sans-serif`;
+        ctx.fillText(storageDef.icon, sx, sy);
+      }
 
-      // Render Greenhouse Garden
+      // Greenhouse
       const gardenAngle = -1.3;
-      const gx = Math.cos(gardenAngle) * (radius + 12);
-      const gy = Math.sin(gardenAngle) * (radius + 12);
-      ctx.font = `${Math.floor(radius * 0.22)}px sans-serif`;
-      ctx.fillText('🪴', gx, gy);
+      const gx = Math.cos(gardenAngle) * (radius + 8);
+      const gy = Math.sin(gardenAngle) * (radius + 8);
+      const plantImg = spriteAtlas.plant('STAR_DAISY');
+      const plantSize = Math.floor(radius * 0.36);
+      if (plantImg) {
+        ctx.drawImage(plantImg, gx - plantSize / 2, gy - plantSize / 2, plantSize, plantSize);
+      } else {
+        ctx.font = `${Math.floor(radius * 0.22)}px sans-serif`;
+        ctx.fillText('🪴', gx, gy);
+      }
 
       // Render Space Traveler Landing Site if present
       if (homePlanet.spaceTraveler) {
@@ -311,8 +347,16 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
           : (furn.posX !== undefined && furn.posY !== undefined ? Math.atan2(furn.posY, furn.posX) : (furn.angle || 0));
         const fx = Math.cos(itemAngle) * (radius + 10);
         const fy = Math.sin(itemAngle) * (radius + 10);
-        ctx.font = `${Math.floor(radius * 0.18)}px sans-serif`;
-        ctx.fillText(catalogItem.icon, fx, fy);
+        const furnImg = spriteAtlas.furniture(furn.itemId);
+        const furnSize = Math.floor(radius * 0.34);
+        if (furnImg) {
+          ctx.drawImage(furnImg, fx - furnSize / 2, fy - furnSize / 2, furnSize, furnSize);
+        } else {
+          ctx.font = `${Math.floor(radius * 0.18)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(catalogItem.icon, fx, fy);
+        }
       });
 
       ctx.restore();
@@ -346,13 +390,21 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
     const nextTier = homePlanet.habitatTier + 1;
     const nextDef = HABITAT_UPGRADES.find((h) => h.tier === nextTier);
     if (!nextDef) return;
+    const m = homeUpgradeCostMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>);
+    const cost = {
+      timber: Math.ceil(nextDef.cost.timber * m),
+      quartz: Math.ceil(nextDef.cost.quartz * m),
+      alloys: Math.ceil(nextDef.cost.alloys * m),
+      plasmaCells: Math.ceil(nextDef.cost.plasmaCells * m),
+      starDust: Math.ceil(nextDef.cost.starDust * m)
+    };
 
     if (
-      homePlanet.supplies.timber < nextDef.cost.timber ||
-      homePlanet.supplies.quartz < nextDef.cost.quartz ||
-      homePlanet.supplies.alloys < nextDef.cost.alloys ||
-      homePlanet.supplies.plasmaCells < nextDef.cost.plasmaCells ||
-      starDustBalance < nextDef.cost.starDust
+      homePlanet.supplies.timber < cost.timber ||
+      homePlanet.supplies.quartz < cost.quartz ||
+      homePlanet.supplies.alloys < cost.alloys ||
+      homePlanet.supplies.plasmaCells < cost.plasmaCells ||
+      starDustBalance < cost.starDust
     ) {
       audioEngine.playPowerUpExpired();
       return;
@@ -364,18 +416,18 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
       habitatTier: nextTier,
       supplies: {
         ...homePlanet.supplies,
-        timber: homePlanet.supplies.timber - nextDef.cost.timber,
-        quartz: homePlanet.supplies.quartz - nextDef.cost.quartz,
-        alloys: homePlanet.supplies.alloys - nextDef.cost.alloys,
-        plasmaCells: homePlanet.supplies.plasmaCells - nextDef.cost.plasmaCells
+        timber: homePlanet.supplies.timber - cost.timber,
+        quartz: homePlanet.supplies.quartz - cost.quartz,
+        alloys: homePlanet.supplies.alloys - cost.alloys,
+        plasmaCells: homePlanet.supplies.plasmaCells - cost.plasmaCells
       }
     };
 
     // Deduct star dust
     const newUserData = {
       ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - nextDef.cost.starDust),
-      starDustCurrency: Math.max(0, starDustBalance - nextDef.cost.starDust),
+      totalStarDust: Math.max(0, starDustBalance - cost.starDust),
+      starDustCurrency: Math.max(0, starDustBalance - cost.starDust),
       homePlanet: updated
     };
     setHomePlanet(updated);
@@ -518,6 +570,10 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
     if (!seed) return;
 
     audioEngine.playPowerUpCollect();
+    const alchemy = calculateSkillBonuses(savedData.skillTreeAllocations || ({} as any)).gardenAlchemyBonus || 0;
+    const hMult = gardenHarvestMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>, alchemy / 0.15);
+    const dustGain = Math.round(seed.rewardStarDust * hMult);
+    const diamondGain = Math.round(seed.rewardDiamonds * hMult);
 
     const updatedPlots = homePlanet.gardenPlots.map((p) => {
       if (p.id === plotId) {
@@ -542,9 +598,9 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
 
     const newUserData = {
       ...savedData,
-      totalStarDust: starDustBalance + seed.rewardStarDust,
-      totalDiamonds: (savedData.totalDiamonds || 0) + seed.rewardDiamonds,
-      totalDiamondsAllTime: (savedData.totalDiamondsAllTime || 0) + seed.rewardDiamonds,
+      totalStarDust: starDustBalance + dustGain,
+      totalDiamonds: (savedData.totalDiamonds || 0) + diamondGain,
+      totalDiamondsAllTime: (savedData.totalDiamondsAllTime || 0) + diamondGain,
       homePlanet: updated
     };
 
@@ -681,13 +737,15 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
   const handleDepositExplorationLoot = () => {
     audioEngine.playPowerUpCollect();
     const storageLimit = (STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0]).capacity;
+    const pickaxe = hasCraftedTool(homePlanet.craftedTools as Array<{ id: string }>, 'GRAVITON_PICKAXE');
+    const harvestBonus = 1 + (calculateSkillBonuses(savedData.skillTreeAllocations || ({} as any)).harvestYieldBonus || 0);
     
     // Add bonus materials gathered from travels
     const updatedSupplies = {
-      timber: Math.min(storageLimit, homePlanet.supplies.timber + 15),
-      quartz: Math.min(storageLimit, homePlanet.supplies.quartz + 10),
-      alloys: Math.min(storageLimit, homePlanet.supplies.alloys + 8),
-      plasmaCells: Math.min(storageLimit, homePlanet.supplies.plasmaCells + 4)
+      timber: Math.min(storageLimit, homePlanet.supplies.timber + Math.round(15 * harvestBonus)),
+      quartz: Math.min(storageLimit, homePlanet.supplies.quartz + Math.round(10 * (pickaxe ? 2 : 1) * harvestBonus)),
+      alloys: Math.min(storageLimit, homePlanet.supplies.alloys + Math.round(8 * harvestBonus)),
+      plasmaCells: Math.min(storageLimit, homePlanet.supplies.plasmaCells + Math.round(4 * harvestBonus))
     };
 
     const updated = { ...homePlanet, supplies: updatedSupplies };
@@ -712,7 +770,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
     const reqDiamonds = offer.cost.diamonds || 0;
 
     const playerStars = savedData.totalStars || 0;
-    const playerDiamonds = savedData.spaceDiamonds || 0;
+    const playerDiamonds = (savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0);
 
     const canAfford =
       homePlanet.supplies.timber >= reqTimber &&
@@ -866,7 +924,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
           {/* Star Dust Currency Balance & Close Button */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-amber-950/40 border border-amber-500/40 px-3 py-1.5 rounded-2xl shadow-sm">
-              <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <ItemSprite src={RESOURCE_SPRITES.stardust} className="w-5 h-5 object-contain" alt="Star Dust" />
               <span className="font-mono font-bold text-sm text-amber-300">
                 {starDustBalance.toLocaleString()}
               </span>
@@ -914,19 +972,23 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
 
               <div className="grid grid-cols-4 gap-1 text-center font-mono">
                 <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <span className="block text-[10px] text-amber-400">🪵 Timber</span>
+                  <ItemSprite src={RESOURCE_SPRITES.timber} className="w-6 h-6 mx-auto object-contain" alt="Timber" />
+                  <span className="block text-[10px] text-amber-400">Timber</span>
                   <span className="font-bold text-white">{homePlanet.supplies.timber}</span>
                 </div>
                 <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <span className="block text-[10px] text-purple-400">💎 Quartz</span>
+                  <ItemSprite src={RESOURCE_SPRITES.quartz} className="w-6 h-6 mx-auto object-contain" alt="Quartz" />
+                  <span className="block text-[10px] text-purple-400">Quartz</span>
                   <span className="font-bold text-white">{homePlanet.supplies.quartz}</span>
                 </div>
                 <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <span className="block text-[10px] text-cyan-400">⚙️ Alloys</span>
+                  <ItemSprite src={RESOURCE_SPRITES.alloys} className="w-6 h-6 mx-auto object-contain" alt="Alloys" />
+                  <span className="block text-[10px] text-cyan-400">Alloys</span>
                   <span className="font-bold text-white">{homePlanet.supplies.alloys}</span>
                 </div>
                 <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <span className="block text-[10px] text-rose-400">⚡ Plasma</span>
+                  <ItemSprite src={RESOURCE_SPRITES.plasma} className="w-6 h-6 mx-auto object-contain" alt="Plasma" />
+                  <span className="block text-[10px] text-rose-400">Plasma</span>
                   <span className="font-bold text-white">{homePlanet.supplies.plasmaCells}</span>
                 </div>
               </div>
@@ -1067,7 +1129,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-3xl">{currentDef.icon}</span>
+                            <ItemSprite src={HABITAT_SPRITES[currentDef.tier]} fallback={currentDef.icon} className="w-12 h-12 object-contain shrink-0" alt={currentDef.name} />
                             <div>
                               <h3 className="font-bold text-sm text-white">{currentDef.name}</h3>
                               <p className="text-xs text-slate-400">{currentDef.description}</p>
@@ -1132,7 +1194,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                                 : 'bg-slate-950/40 border-slate-800 hover:border-slate-700'
                             }`}
                           >
-                            <span className="text-xl">{b.icon}</span>
+                            <ItemSprite src={BIOME_SPRITES[b.id]} fallback={b.icon} className="w-9 h-9 object-contain rounded-full shrink-0" alt={b.name} />
                             <div className="min-w-0">
                               <span className="font-bold text-xs block text-white truncate">{b.name}</span>
                               <span className="text-[10px] text-slate-400 block line-clamp-1">{b.description}</span>
@@ -1179,7 +1241,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                                 : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200'
                             }`}
                           >
-                            <span className="text-xl">{seed.icon}</span>
+                            <ItemSprite src={PLANT_SPRITES[seed.type]} fallback={seed.icon} className="w-9 h-9 object-contain shrink-0" alt={seed.name} />
                             <div className="min-w-0">
                               <span className="text-xs font-bold block truncate">{seed.name}</span>
                               <span className="text-[10px] text-amber-400 font-mono">
@@ -1222,7 +1284,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                           >
                             {plot.seedType && seedConfig ? (
                               <>
-                                <span className="text-2xl animate-bounce">{seedConfig.icon}</span>
+                                <ItemSprite src={PLANT_SPRITES[plot.seedType]} fallback={seedConfig.icon} className="w-10 h-10 object-contain" alt={seedConfig.name} />
                                 <span className="text-xs font-bold text-white mt-1">{seedConfig.name}</span>
                                 {plot.isHarvestable ? (
                                    <button
@@ -1236,18 +1298,18 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                                     <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                                       <div
                                         className="h-full bg-emerald-400 transition-all duration-300"
-                                        style={{ width: `${Math.floor(plot.growthProgress * 100)}%` }}
+                                        style={{ width: `${Math.floor((plot.growthProgress ?? 0) * 100)}%` }}
                                       />
                                     </div>
                                     <span className="text-[10px] text-slate-400 mt-0.5 block font-mono">
-                                      Growing... {Math.floor(plot.growthProgress * 100)}%
+                                      Growing... {Math.floor((plot.growthProgress ?? 0) * 100)}%
                                     </span>
                                   </div>
                                 )}
                               </>
                             ) : (
                               <div className="flex flex-col items-center justify-center h-full py-2">
-                                <span className="text-slate-600 text-xl">🌱</span>
+                                <ItemSprite src={PLANT_SPRITES.STAR_DAISY} className="w-8 h-8 object-contain opacity-40" alt="" />
                                 <span className="text-[11px] text-slate-500 mt-1">Empty Plot</span>
                                 <button
                                   onClick={() => handlePlantSeed(plot.id)}
@@ -1286,7 +1348,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-3xl">{currentStorage.icon}</span>
+                            <ItemSprite src={STORAGE_SPRITE} fallback={currentStorage.icon} className="w-12 h-12 object-contain shrink-0" alt={currentStorage.name} />
                             <div>
                               <h3 className="font-bold text-sm text-white">{currentStorage.name}</h3>
                               <p className="text-xs text-slate-400">Total Material Storage Capacity: {currentStorage.capacity} units</p>
@@ -1350,7 +1412,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                         className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="text-3xl shrink-0">{tool.icon}</span>
+                          <ItemSprite src={TOOL_SPRITES[tool.id]} fallback={tool.icon} className="w-12 h-12 object-contain shrink-0" alt={tool.name} />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-xs text-white truncate">{tool.name}</h4>
@@ -1398,7 +1460,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                         className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between gap-2"
                       >
                         <div className="flex items-start gap-2.5">
-                          <span className="text-2xl">{item.icon}</span>
+                          <ItemSprite src={FURNITURE_SPRITES[item.id]} fallback={item.icon} className="w-12 h-12 object-contain shrink-0" alt={item.name} />
                           <div className="min-w-0">
                             <span className="font-bold text-xs text-white block truncate">{item.name}</span>
                             <span className="text-[10px] text-slate-400 block line-clamp-2">{item.description}</span>
@@ -1509,7 +1571,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                           const hasPlasma = homePlanet.supplies.plasmaCells >= reqPlasma;
                           const hasStarDust = starDustBalance >= reqStarDust;
                           const hasStars = (savedData.totalStars || 0) >= reqStars;
-                          const hasDiamonds = (savedData.spaceDiamonds || 0) >= reqDiamonds;
+                          const hasDiamonds = ((savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0)) >= reqDiamonds;
 
                           const canTrade =
                             !offer.traded &&
@@ -1532,15 +1594,13 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-start gap-3">
-                                  <div
-                                    className="w-10 h-10 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-inner"
-                                    style={{
-                                      backgroundColor: `${offer.color || '#a855f7'}20`,
-                                      borderColor: `${offer.color || '#a855f7'}50`,
-                                      borderWidth: 1
-                                    }}
-                                  >
-                                    {offer.icon}
+                                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner overflow-hidden bg-slate-950/60 border border-slate-700">
+                                    <ItemSprite
+                                      src={FURNITURE_SPRITES[offer.itemId]}
+                                      fallback={offer.icon}
+                                      className="w-11 h-11 object-contain"
+                                      alt={offer.name}
+                                    />
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-2">
@@ -1662,7 +1722,7 @@ export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
                                         : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
                                     }`}
                                   >
-                                    💠 {savedData.spaceDiamonds || 0}/{reqDiamonds} Diamonds
+                                    💠 {(savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0)}/{reqDiamonds} Diamonds
                                   </span>
                                 )}
                               </div>

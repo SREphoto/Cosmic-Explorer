@@ -41,7 +41,7 @@ export default function App() {
 
   const [gameMode, setGameMode] = useState<GameMode>('MENU');
   const [savedData, setSavedData] = useState<UserSavedData>(() => StorageManager.loadData());
-  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [currentUser, setCurrentUser] = useState<typeof auth.currentUser>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [levelVictoryData, setLevelVictoryData] = useState<LevelVictoryData | null>(null);
   const [activeModal, setActiveModal] = useState<
@@ -59,12 +59,20 @@ export default function App() {
     maxAltitude: 0,
     starsCollected: 0,
     diamondsCollected: 0,
+    xpEarnedRun: 0,
     consecutivePerfectJumps: 0,
     maxConsecutiveJumps: 0,
     planetRotationsCurrent: 0,
     sunsLandedCount: 0,
     powerUpsUsedCount: 0,
-    planetsLandedCount: 0
+    planetsLandedCount: 0,
+    jetpackChargesRemaining: 1,
+    rewindChargesRemaining: 1,
+    maxRewindCharges: 1,
+    fullOrbitsCompleted: 0,
+    ricochetsExecuted: 0,
+    currentLevelNumber: 1,
+    currentLevelName: 'Verdant Stratosphere'
   });
 
   useEffect(() => {
@@ -486,7 +494,6 @@ export default function App() {
             onOpenTutorial={() => setActiveModal('ONBOARDING')}
             onOpenMap={() => setActiveModal('MAP')}
             onToggleAudio={handleToggleAudio}
-            onVolumeChange={handleVolumeChange}
             onClaimDailyChallenge={handleClaimDailyChallenge}
           />
         )}
@@ -515,10 +522,11 @@ export default function App() {
               <MultiplayerGameOverlay
                 room={activeMultiplayerRoom}
                 isHost={isMultiplayerHost}
-                currentAltitude={stats.altitude}
-                trapsAvailable={3}
+                currentUserId={currentUser?.uid || 'guest'}
+                isPlayerAttached={engineRef.current.player.isAttached}
+                currentPlanetId={engineRef.current.player.currentPlanet?.id || null}
                 onDeployTrap={handleDeployTrap}
-                onLeaveRoom={handleLeaveMultiplayerMatch}
+                onLeaveMatch={handleLeaveMultiplayerMatch}
               />
             )}
           </>
@@ -671,9 +679,10 @@ export default function App() {
         {isStarGazingOpen && engineRef.current && (
           <StarGazingModal
             planet={engineRef.current.player.currentPlanet}
-            savedData={savedData}
+            altitude={stats.altitude}
+            constellation={engineRef.current.currentConstellation}
             onClose={handleCloseStarGazing}
-            onClaimReward={handleStarGazingReward}
+            onRewardClaimed={handleStarGazingReward}
           />
         )}
 
@@ -717,6 +726,7 @@ export default function App() {
               setShowLoginModal(false);
               showToast('SUCCESS', 'Starfleet Verification Confirmed', `Welcome Commander ${displayName}!`);
             }}
+            onClose={currentUser ? () => setShowLoginModal(false) : undefined}
           />
         )}
 

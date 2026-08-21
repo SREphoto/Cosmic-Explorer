@@ -405,12 +405,16 @@ export const DocsViewerModal: React.FC<DocsViewerModalProps> = ({ onClose, saved
                         <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-2">
                           <span className="text-[10px] text-slate-400 block font-sans">Thermal Index</span>
                           <span className="text-purple-300 font-bold block truncate">
-                            {planet.type === 'SUN' || planet.type === 'MAGMA'
+                            {planet.type === 'SUN' || planet.type === 'MAGMA' || planet.type === 'STORM' || planet.type === 'CLOUD'
                               ? 'Extreme Heat'
-                              : planet.type === 'ICE'
+                              : planet.type === 'ICE' || planet.type === 'AURORA'
                               ? 'Cryogenic Sub-Zero'
-                              : planet.type === 'DARK'
+                              : planet.type === 'DARK' || planet.type === 'NEBULA'
                               ? 'Absolute Zero'
+                              : planet.type === 'TOXIC'
+                              ? 'Corrosive Greenhouse'
+                              : planet.type === 'MOON'
+                              ? 'Airless Vacuum'
                               : 'Temperate'}
                           </span>
                         </div>

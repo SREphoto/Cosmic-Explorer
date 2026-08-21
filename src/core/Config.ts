@@ -22,6 +22,26 @@ import {
 } from '../types/game';
 
 export { CELESTIAL_CONSTELLATIONS, ZODIAC_CONSTELLATIONS } from './Constellations';
+import {
+  EXTRA_ACHIEVEMENTS,
+  EXTRA_CHECKPOINTS,
+  EXTRA_COSTUMES,
+  EXTRA_FURNITURE,
+  EXTRA_GARDEN_SEEDS,
+  EXTRA_GEAR,
+  EXTRA_GREENHOUSE_UPGRADES,
+  EXTRA_HABITAT_UPGRADES,
+  EXTRA_HOME_TOOLS,
+  EXTRA_MEDALS,
+  EXTRA_ROCKETS,
+  EXTRA_SECTORS,
+  EXTRA_SKILL_NODES,
+  EXTRA_STAGES,
+  EXTRA_STORAGE_UPGRADES,
+  MODULE_UPGRADE_PRICES,
+} from './ProgressionPack';
+
+export { MODULE_MAX_LEVEL, hasCraftedTool, homeUpgradeCostMultiplier, gardenGrowthMultiplier, gardenHarvestMultiplier } from './ProgressionPack';
 
 // Legacy stub
 const _UNUSED_LEGACY: ConstellationData[] = [
@@ -573,9 +593,9 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 1,
     maxPlanetIndex: 25,
     bgGradient: ['#0b1021', '#1e1b4b', '#064e3b'],
-    nebulaColors: ['rgba(34, 197, 94, 0.25)', 'rgba(16, 185, 129, 0.20)', 'rgba(56, 189, 248, 0.15)'],
+    nebulaColors: ['rgba(34, 197, 94, 0.48)', 'rgba(16, 185, 129, 0.38)', 'rgba(56, 189, 248, 0.32)'],
     starColors: ['#ffffff', '#bbf7d0', '#fed7aa', '#fef08a'],
-    featuredTypes: ['GRASS', 'STANDARD', 'ASTEROID', 'SUN'],
+    featuredTypes: ['GRASS', 'STANDARD', 'ASTEROID', 'SUN', 'MOON', 'OCEAN'],
     themeDescription: 'Gentle orbital gravity, blooming starlight daisies, and tranquil solar wind.'
   },
   {
@@ -585,9 +605,9 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 26,
     maxPlanetIndex: 60,
     bgGradient: ['#022c22', '#064e3b', '#1e1b4b'],
-    nebulaColors: ['rgba(168, 85, 247, 0.28)', 'rgba(52, 211, 153, 0.22)', 'rgba(236, 72, 153, 0.18)'],
+    nebulaColors: ['rgba(168, 85, 247, 0.50)', 'rgba(52, 211, 153, 0.40)', 'rgba(236, 72, 153, 0.34)'],
     starColors: ['#ffffff', '#a7f3d0', '#e9d5ff', '#fde047'],
-    featuredTypes: ['CRYSTAL', 'ICE', 'ASTEROID', 'RINGED_GIANT'],
+    featuredTypes: ['CRYSTAL', 'ICE', 'ASTEROID', 'RINGED_GIANT', 'DESERT', 'MOON'],
     themeDescription: 'Floating crystal clusters, spinning amethyst rings, and rich diamond deposits.'
   },
   {
@@ -597,9 +617,9 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 61,
     maxPlanetIndex: 100,
     bgGradient: ['#450a0a', '#1e1b4b', '#7c2d12'],
-    nebulaColors: ['rgba(239, 68, 68, 0.32)', 'rgba(249, 115, 22, 0.26)', 'rgba(250, 204, 21, 0.20)'],
+    nebulaColors: ['rgba(239, 68, 68, 0.55)', 'rgba(249, 115, 22, 0.46)', 'rgba(250, 204, 21, 0.38)'],
     starColors: ['#ffffff', '#fecaca', '#fed7aa', '#fef08a'],
-    featuredTypes: ['MAGMA', 'PLASMA', 'SUN', 'ASTEROID'],
+    featuredTypes: ['MAGMA', 'PLASMA', 'SUN', 'ASTEROID', 'TOXIC', 'JUNGLE'],
     themeDescription: 'Intense thermal solar updrafts (+25% launch speed) and molten basalt planets.'
   },
   {
@@ -609,9 +629,9 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 101,
     maxPlanetIndex: 160,
     bgGradient: ['#082f49', '#0e7490', '#164e63'],
-    nebulaColors: ['rgba(6, 182, 212, 0.34)', 'rgba(236, 72, 153, 0.28)', 'rgba(129, 140, 248, 0.22)'],
+    nebulaColors: ['rgba(6, 182, 212, 0.55)', 'rgba(236, 72, 153, 0.46)', 'rgba(129, 140, 248, 0.40)'],
     starColors: ['#ffffff', '#a5f3fc', '#fbcfe8', '#e0e7ff'],
-    featuredTypes: ['NEON', 'MECH', 'PLASMA', 'RINGED_GIANT'],
+    featuredTypes: ['NEON', 'MECH', 'PLASMA', 'RINGED_GIANT', 'CLOUD', 'FUNGAL'],
     themeDescription: 'Pulsing cybernetic rings, electromagnetic speed trails, and gravity flips.'
   },
   {
@@ -621,9 +641,9 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 161,
     maxPlanetIndex: 230,
     bgGradient: ['#0f172a', '#172554', '#311042'],
-    nebulaColors: ['rgba(59, 130, 246, 0.35)', 'rgba(56, 189, 248, 0.28)', 'rgba(192, 132, 252, 0.22)'],
+    nebulaColors: ['rgba(59, 130, 246, 0.55)', 'rgba(56, 189, 248, 0.46)', 'rgba(192, 132, 252, 0.40)'],
     starColors: ['#ffffff', '#bae6fd', '#bfdbfe', '#e9d5ff'],
-    featuredTypes: ['ICE', 'CRYSTAL', 'CELESTIAL_SANCTUARY', 'RINGED_GIANT'],
+    featuredTypes: ['ICE', 'CRYSTAL', 'CELESTIAL_SANCTUARY', 'RINGED_GIANT', 'AURORA', 'STORM'],
     themeDescription: 'Super-slick low-friction ice surfaces, rapid planetary spins, and cryo geysers.'
   },
   {
@@ -633,9 +653,9 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 231,
     maxPlanetIndex: 320,
     bgGradient: ['#1e1b4b', '#2e1065', '#09090b'],
-    nebulaColors: ['rgba(124, 58, 237, 0.38)', 'rgba(147, 51, 234, 0.30)', 'rgba(244, 63, 94, 0.22)'],
+    nebulaColors: ['rgba(124, 58, 237, 0.58)', 'rgba(147, 51, 234, 0.48)', 'rgba(244, 63, 94, 0.40)'],
     starColors: ['#ffffff', '#ddd6fe', '#e9d5ff', '#f43f5e'],
-    featuredTypes: ['DARK', 'ANTIMATTER', 'PLASMA', 'MECH'],
+    featuredTypes: ['DARK', 'ANTIMATTER', 'PLASMA', 'MECH', 'TOXIC', 'NEBULA'],
     themeDescription: 'Gravitational time-dilation pull, antimatter hazards, and pulsing dark matter nodes.'
   },
   {
@@ -645,23 +665,24 @@ export const DYNAMIC_LEVELS: LevelBiomeInfo[] = [
     minPlanetIndex: 321,
     maxPlanetIndex: 450,
     bgGradient: ['#052e16', '#064e3b', '#1e1b4b'],
-    nebulaColors: ['rgba(34, 197, 94, 0.35)', 'rgba(16, 185, 129, 0.28)', 'rgba(250, 204, 21, 0.24)'],
+    nebulaColors: ['rgba(34, 197, 94, 0.55)', 'rgba(16, 185, 129, 0.46)', 'rgba(250, 204, 21, 0.40)'],
     starColors: ['#ffffff', '#bbf7d0', '#fef08a', '#e0e7ff'],
-    featuredTypes: ['CELESTIAL_SANCTUARY', 'RINGED_GIANT', 'CRYSTAL', 'NEON'],
+    featuredTypes: ['CELESTIAL_SANCTUARY', 'RINGED_GIANT', 'CRYSTAL', 'NEON', 'JUNGLE', 'OCEAN'],
     themeDescription: 'Massive ringed hyper-giants, stardust fountains, and ancient astral ruins.'
   },
   {
     levelNumber: 8,
     name: 'Sector 8: Omniverse Eternity Horizon',
-    subtitle: 'Infinite Dimension Convergence • Planets 451 - 1000+',
+    subtitle: 'Infinite Dimension Convergence • Planets 451 - 550',
     minPlanetIndex: 451,
-    maxPlanetIndex: 1000,
+    maxPlanetIndex: 550,
     bgGradient: ['#09090b', '#1e1b4b', '#3b0764'],
-    nebulaColors: ['rgba(99, 102, 241, 0.40)', 'rgba(192, 132, 252, 0.35)', 'rgba(244, 63, 94, 0.30)'],
+    nebulaColors: ['rgba(99, 102, 241, 0.58)', 'rgba(192, 132, 252, 0.50)', 'rgba(244, 63, 94, 0.44)'],
     starColors: ['#ffffff', '#c7d2fe', '#e9d5ff', '#f43f5e', '#38bdf8'],
-    featuredTypes: ['ANTIMATTER', 'CELESTIAL_SANCTUARY', 'DARK', 'RINGED_GIANT', 'NEON'],
+    featuredTypes: ['ANTIMATTER', 'CELESTIAL_SANCTUARY', 'DARK', 'RINGED_GIANT', 'NEON', 'STORM', 'AURORA', 'FUNGAL'],
     themeDescription: 'The pinnacle of cosmic space: all biomes converge in harmonic singularity.'
-  }
+  },
+  ...EXTRA_SECTORS
 ];
 
 export const LEVEL_BIOMES: LevelBiomeInfo[] = DYNAMIC_LEVELS;
@@ -795,7 +816,8 @@ export const SECTOR_MILITARY_MEDALS: MilitaryMedal[] = [
       type: 'CHARGE_POWER',
       value: 0.20
     }
-  }
+  },
+  ...EXTRA_MEDALS
 ];
 
 export function calculateTotalMedalBonuses(unlockedMedalIds: string[] = []) {
@@ -867,7 +889,8 @@ export const HABITAT_UPGRADES = [
   { tier: 2, name: 'Starlight Timber Cabin', icon: '🛖', cost: { timber: 25, quartz: 10, alloys: 5, plasmaCells: 2, starDust: 50 }, description: 'Cozy reinforced wooden cabin with stargazing porch.' },
   { tier: 3, name: 'Geodesic Bio-Dome', icon: '🏡', cost: { timber: 50, quartz: 30, alloys: 20, plasmaCells: 8, starDust: 150 }, description: 'Pressurized bio-dome with atmospheric temperature control.' },
   { tier: 4, name: 'Quantum Energy Villa', icon: '🏢', cost: { timber: 80, quartz: 60, alloys: 50, plasmaCells: 25, starDust: 350 }, description: 'Advanced habitat powered by a solar plasma micro-reactor.' },
-  { tier: 5, name: 'Celestial Astral Citadel', icon: '🏰', cost: { timber: 150, quartz: 120, alloys: 100, plasmaCells: 60, starDust: 750 }, description: 'Masterpiece transcendent sanctuary commanding the cosmos.' }
+  { tier: 5, name: 'Celestial Astral Citadel', icon: '🏰', cost: { timber: 150, quartz: 120, alloys: 100, plasmaCells: 60, starDust: 750 }, description: 'Masterpiece transcendent sanctuary commanding the cosmos.' },
+  ...EXTRA_HABITAT_UPGRADES
 ];
 
 export const STORAGE_UPGRADES = [
@@ -875,7 +898,8 @@ export const STORAGE_UPGRADES = [
   { tier: 2, name: 'Reinforced Cargo Vault', icon: '🗄️', capacity: 300, cost: { timber: 20, quartz: 10, alloys: 15, plasmaCells: 0, starDust: 40 } },
   { tier: 3, name: 'Quantum Material Silo', icon: '🏭', capacity: 800, cost: { timber: 45, quartz: 35, alloys: 30, plasmaCells: 10, starDust: 120 } },
   { tier: 4, name: 'Sub-Atomic Storage Matrix', icon: '🌐', capacity: 2000, cost: { timber: 90, quartz: 70, alloys: 60, plasmaCells: 30, starDust: 300 } },
-  { tier: 5, name: 'Infinite Matter Bank', icon: '🌌', capacity: 99999, cost: { timber: 160, quartz: 140, alloys: 120, plasmaCells: 75, starDust: 650 } }
+  { tier: 5, name: 'Infinite Matter Bank', icon: '🌌', capacity: 99999, cost: { timber: 160, quartz: 140, alloys: 120, plasmaCells: 75, starDust: 650 } },
+  ...EXTRA_STORAGE_UPGRADES
 ];
 
 export const GREENHOUSE_UPGRADES = [
@@ -883,7 +907,8 @@ export const GREENHOUSE_UPGRADES = [
   { tier: 2, name: 'Hydroponic Garden Terrace', plots: 4, cost: { timber: 15, quartz: 10, alloys: 5, plasmaCells: 0, starDust: 30 } },
   { tier: 3, name: 'Bioluminescent Greenhouse', plots: 6, cost: { timber: 35, quartz: 25, alloys: 20, plasmaCells: 5, starDust: 90 } },
   { tier: 4, name: 'Solar Flora Accelerator', plots: 8, cost: { timber: 70, quartz: 50, alloys: 40, plasmaCells: 20, starDust: 240 } },
-  { tier: 5, name: 'Eden Astral Biosphere', plots: 12, cost: { timber: 130, quartz: 100, alloys: 80, plasmaCells: 50, starDust: 500 } }
+  { tier: 5, name: 'Eden Astral Biosphere', plots: 12, cost: { timber: 130, quartz: 100, alloys: 80, plasmaCells: 50, starDust: 500 } },
+  ...EXTRA_GREENHOUSE_UPGRADES
 ];
 
 export const GARDEN_SEEDS: Array<{
@@ -900,14 +925,16 @@ export const GARDEN_SEEDS: Array<{
   { type: 'MOON_ORCHID', name: 'Luminescent Moon Orchid', icon: '🌸', description: 'Shimmers under lunar light, yielding pure diamonds.', costStarDust: 35, growthDurationSeconds: 75, rewardStarDust: 65, rewardDiamonds: 6 },
   { type: 'VOID_ROSE', name: 'Abyssal Void Rose', icon: '🌹', description: 'Rare dark flower absorbing antimatter particles.', costStarDust: 60, growthDurationSeconds: 120, rewardStarDust: 120, rewardDiamonds: 12 },
   { type: 'LUMEN_FRUIT', name: 'Stellar Lumen Fruit Tree', icon: '🍎', description: 'Produces glowing celestial fruits bursting with energy.', costStarDust: 100, growthDurationSeconds: 180, rewardStarDust: 220, rewardDiamonds: 20 },
-  { type: 'COSMIC_LOTUS', name: 'Astral Lotus of Eternity', icon: '🪷', description: 'The pinnacle of cosmic flora, radiating immense stardust.', costStarDust: 180, growthDurationSeconds: 300, rewardStarDust: 450, rewardDiamonds: 45 }
+  { type: 'COSMIC_LOTUS', name: 'Astral Lotus of Eternity', icon: '🪷', description: 'The pinnacle of cosmic flora, radiating immense stardust.', costStarDust: 180, growthDurationSeconds: 300, rewardStarDust: 450, rewardDiamonds: 45 },
+  ...EXTRA_GARDEN_SEEDS
 ];
 
 export const CRAFTABLE_HOME_TOOLS: import('../types/game').HomeCraftedTool[] = [
   { id: 'GRAVITON_PICKAXE', name: 'Graviton Pickaxe', level: 1, description: 'Harvests double minerals from crystalline worlds.', icon: '⛏️', perkDescription: '+100% Astral Quartz from voyages', cost: { timber: 15, quartz: 15, alloys: 10, plasmaCells: 0, starDust: 40 } },
   { id: 'STARLIGHT_CAN', name: 'Starlight Watering Can', level: 1, description: 'Infuses garden crops with solar radiation.', icon: '🪴', perkDescription: '+50% Crop Growth Speed in Astral Garden', cost: { timber: 20, quartz: 5, alloys: 15, plasmaCells: 5, starDust: 60 } },
   { id: 'BIO_SCANNER_MK2', name: 'Spectral Bio-Scanner Mk II', level: 1, description: 'Extracts deeper planetary core data during voyages.', icon: '🔬', perkDescription: '+50% Star Dust from Planetary Star Gazing scans', cost: { timber: 10, quartz: 25, alloys: 20, plasmaCells: 15, starDust: 100 } },
-  { id: 'SOLAR_WELDER', name: 'Plasma Arc Welder', level: 1, description: 'Thermal forging tool for home construction.', icon: '👨‍🏭', perkDescription: 'Reduces all Home Base upgrade costs by 20%', cost: { timber: 25, quartz: 20, alloys: 35, plasmaCells: 25, starDust: 120 } }
+  { id: 'SOLAR_WELDER', name: 'Plasma Arc Welder', level: 1, description: 'Thermal forging tool for home construction.', icon: '👨‍🏭', perkDescription: 'Reduces all Home Base upgrade costs by 20%', cost: { timber: 25, quartz: 20, alloys: 35, plasmaCells: 25, starDust: 120 } },
+  ...EXTRA_HOME_TOOLS
 ];
 
 export const HOME_FURNITURE_CATALOG = [
@@ -927,7 +954,8 @@ export const HOME_FURNITURE_CATALOG = [
   { id: 'FURN_CELESTIAL_THRONE', name: 'Sun Sovereign Throne', category: 'FURNITURE' as const, icon: '👑', color: '#f59e0b', costStarDust: 300, description: 'Gilded royal seat forged from hardened solar flares and meteorite gold.' },
   { id: 'FURN_NEBULA_AQUARIUM', name: 'Void Plasma Terrarium', category: 'LIGHTING' as const, icon: '🪼', color: '#ec4899', costStarDust: 160, description: 'Zero-g spherical habitat housing floating, bioluminescent interstellar medusae.' },
   { id: 'FURN_CRYSTAL_SPIRE', name: 'Prismatic Starlight Spire', category: 'STRUCTURE' as const, icon: '💎', color: '#06b6d4', costStarDust: 210, description: 'Towering crystal pillar that refracts cosmic starlight into rainbow sky beams.' },
-  { id: 'FURN_NOMAD_TENT', name: 'Astral Nomad Pavilion', category: 'FURNITURE' as const, icon: '🎪', color: '#f43f5e', costStarDust: 175, description: 'Silken thermal tent woven from comet fibers by wandering cosmic nomads.' }
+  { id: 'FURN_NOMAD_TENT', name: 'Astral Nomad Pavilion', category: 'FURNITURE' as const, icon: '🎪', color: '#f43f5e', costStarDust: 175, description: 'Silken thermal tent woven from comet fibers by wandering cosmic nomads.' },
+  ...EXTRA_FURNITURE
 ];
 
 // ==========================================
@@ -1320,7 +1348,8 @@ export const CHECKPOINT_PLANETS: CheckpointInfo[] = [
     ringColor: 'rgba(244, 63, 94, 0.85)',
     rewardStars: 7500,
     rewardXP: 15000
-  }
+  },
+  ...EXTRA_CHECKPOINTS
 ];
 
 // RPG Skill Trees
@@ -1494,7 +1523,8 @@ export const RPG_SKILL_NODES: SkillNode[] = [
     requiredPlayerLevel: 15,
     costPerRank: 3,
     perkSummary: (rank) => rank >= 1 ? `Active: 1 Automatic Emergency Revival per voyage!` : 'Inactive'
-  }
+  },
+  ...EXTRA_SKILL_NODES
 ];
 
 export interface SkillTreeBranch {
@@ -1526,6 +1556,13 @@ export const SKILL_TREES: SkillTreeBranch[] = [
     description: 'Deep freeze insulation, stone curse wards, void repulsors, and Phoenix Nova revival.',
     icon: '🛡️',
     nodes: RPG_SKILL_NODES.filter((n) => n.branch === 'RESILIENCE')
+  },
+  {
+    id: 'HARVEST',
+    name: 'Harvest',
+    description: 'Planetary yield, garden alchemy, orbital fortune, and star-gaze cartography.',
+    icon: '🌾',
+    nodes: RPG_SKILL_NODES.filter((n) => n.branch === 'HARVEST')
   }
 ];
 
@@ -1849,7 +1886,8 @@ export const RPG_GEAR_ITEMS: GearItem[] = [
     requiredPlayerLevel: 8,
     unlocked: false,
     color: '#ec4899'
-  }
+  },
+  ...EXTRA_GEAR
 ];
 
 export const COSMIC_GEAR_ITEMS = RPG_GEAR_ITEMS;
@@ -2122,7 +2160,14 @@ export function calculateSkillBonuses(allocations: SkillTreeAllocations) {
     stoneCurseDelay: getRank('STONE_WARD') * 0.20,
     voidPushbackBonus: getRank('VOID_REPULSOR') * 60,
     sunBonusStars: getRank('SOLAR_SHIELD') * 0.20,
-    hasPhoenixRebirth: getRank('PHOENIX_REBIRTH') >= 1
+    hasPhoenixRebirth: getRank('PHOENIX_REBIRTH') >= 1,
+    cometVoidPushBonus: getRank('COMET_ECHO') * 80,
+    voidSlowRatio: getRank('VOID_ANCHOR') * 0.08,
+    harvestYieldBonus: getRank('HARVEST_SURGE') * 0.20,
+    orbitFortuneStars: getRank('ORBITAL_FORTUNE') * 3,
+    gardenAlchemyBonus: getRank('GARDEN_ALCHEMY') * 0.15,
+    starGazeDustBonus: getRank('VOID_CARTOGRAPHY') * 0.20,
+    extraLandingPush: getRank('ABYSSAL_TETHER') * 40
   };
 }
 
@@ -2284,7 +2329,8 @@ export const INITIAL_COSTUMES: Costume[] = [
     trailColor: '#38bdf8',
     hairColor: '#bae6fd',
     hatType: 'CRYO_HORNS'
-  }
+  },
+  ...EXTRA_COSTUMES
 ];
 
 export const INITIAL_ROCKET_SKINS: RocketSkin[] = [
@@ -2337,7 +2383,8 @@ export const INITIAL_ROCKET_SKINS: RocketSkin[] = [
     icon: '🛸',
     primaryColor: '#10b981',
     flameColor: '#34d399'
-  }
+  },
+  ...EXTRA_ROCKETS
 ];
 
 export const ACHIEVEMENTS: Achievement[] = [
@@ -2494,17 +2541,11 @@ export const ACHIEVEMENTS: Achievement[] = [
     target: 3,
     rewardStars: 350,
     rewardDiamonds: 15
-  }
+  },
+  ...EXTRA_ACHIEVEMENTS
 ];
 
-export const UPGRADE_PRICES = {
-  MAGNET: [100, 250, 500, 1000, 2000],   // Price in stars for levels 1->2, 2->3, etc.
-  COMET: [100, 250, 500, 1000, 2000],
-  MULTIPLIER: [150, 300, 600, 1200, 2500],
-  JETPACK: [200, 450, 800, 1500, 3000],
-  RICOCHET: [250, 500, 1000, 1800, 3500],
-  REWIND: [250, 600, 1200, 2200, 4500]
-};
+export const UPGRADE_PRICES = MODULE_UPGRADE_PRICES;
 
 export const INITIAL_STAGES: StageQuest[] = [
   {
@@ -2671,7 +2712,8 @@ export const INITIAL_STAGES: StageQuest[] = [
         completed: false
       }
     ]
-  }
+  },
+  ...EXTRA_STAGES
 ];
 
 // ==========================================
@@ -2901,6 +2943,136 @@ export const PLANET_LORE_DATABASE: PlanetLoreEntry[] = [
     lore: 'Exotic matter spheres teetering on the edge of gravitational collapse. Their event horizon warps local spacetime, creating intense slingshot catapults capable of launching voyagers into distant constellations.',
     astrophysicalNotes: 'Bends light rays into gravitational Einstein rings and doubles stardust point values during orbital capture.',
     discoveryMilestone: 'Discovered in Sector 6 (Planets 140+)'
+  },
+  {
+    type: 'OCEAN',
+    name: 'Pelagic Azure Worlds',
+    subtitle: 'Class-W Hydrostatic Water Sphere',
+    icon: '🌊',
+    accentColor: '#0ea5e9',
+    atmosphereType: 'Humid Marine Nitrogen-Oxygen',
+    gravitySignature: 'Deep Well (1.08g)',
+    hazardRisk: 'LOW',
+    lore: 'Globe-spanning sapphire oceans broken by archipelagos of mossy islands. Trade winds and glittering cloud bands make these worlds the cartographers’ favorite rest stop between meadow belts.',
+    astrophysicalNotes: 'High thermal capacity of the world-ocean damps temperature swings, producing unusually stable launch windows.',
+    discoveryMilestone: 'Discovered in Sector 1 (Planets 1+)'
+  },
+  {
+    type: 'DESERT',
+    name: 'Dune-Scarred Arid Spheres',
+    subtitle: 'Class-H Xeric Terrestrial',
+    icon: '🏜️',
+    accentColor: '#f59e0b',
+    atmosphereType: 'Thin Dust-Laden Nitrogen',
+    gravitySignature: 'Crisp Dry Well (0.92g)',
+    hazardRisk: 'LOW',
+    lore: 'Wind-carved ochre worlds of migrating dunes, rust canyons, and a single pale frost cap. Sunlight ricochets off the silica, painting the void in warm copper.',
+    astrophysicalNotes: 'Airborne dust grains seed faint rings and raise local albedo, making desert worlds easy to spot from several jumps away.',
+    discoveryMilestone: 'Discovered in Sector 2 (Planets 26+)'
+  },
+  {
+    type: 'JUNGLE',
+    name: 'Canopy Wilds',
+    subtitle: 'Class-T Hyper-Biogenic Rainforest',
+    icon: '🌿',
+    accentColor: '#22c55e',
+    atmosphereType: 'Dense Oxygen-Rich Mist',
+    gravitySignature: 'Soft Organic Well (1.02g)',
+    hazardRisk: 'LOW',
+    lore: 'Entire globes swallowed by stacked rainforest canopies, river-cut valleys, and perpetual tropical fog. Every landing is a crash through luminous leaves.',
+    astrophysicalNotes: 'Photosynthetic biomass generates a faint green airglow visible even from neighboring orbits.',
+    discoveryMilestone: 'Discovered in Sector 3 (Planets 61+)'
+  },
+  {
+    type: 'STORM',
+    name: 'Banded Tempest Giants',
+    subtitle: 'Class-J Cyclonic Gas Super-Planet',
+    icon: '🌪️',
+    accentColor: '#ea580c',
+    atmosphereType: 'Hydrogen Bands & Ammonia Cells',
+    gravitySignature: 'Titan Grav Well (1.50g)',
+    hazardRisk: 'HIGH',
+    lore: 'Colossal cream-and-copper gas worlds wearing a single crimson storm-eye. Their belts rotate at different speeds, flinging jumpers on wild, high-momentum slings.',
+    astrophysicalNotes: 'Differential rotation of cloud decks produces a wide capture radius and thunderous thermal updrafts.',
+    discoveryMilestone: 'Discovered in Sector 5 (Planets 161+)'
+  },
+  {
+    type: 'TOXIC',
+    name: 'Venom Cloud Cauldrons',
+    subtitle: 'Class-X Acidic Greenhouse',
+    icon: '☠️',
+    accentColor: '#84cc16',
+    atmosphereType: 'Chlorine-Sulfur Acid Haze',
+    gravitySignature: 'Sour Dense Well (1.18g)',
+    hazardRisk: 'HIGH',
+    lore: 'Chartreuse poison worlds where lime clouds chew through hull paint and bubbling vents spit glowing spores. Stay only long enough to steal the updraft.',
+    astrophysicalNotes: 'Corrosive aerosols scatter lime-yellow light, creating a toxic halo that warns navigators from a distance.',
+    discoveryMilestone: 'Discovered in Sector 3 (Planets 61+)'
+  },
+  {
+    type: 'MOON',
+    name: 'Ashen Moonlets',
+    subtitle: 'Class-S Cratered Satellite',
+    icon: '🌑',
+    accentColor: '#94a3b8',
+    atmosphereType: 'Exosphere Dust / None',
+    gravitySignature: 'Feather Well (0.42g)',
+    hazardRisk: 'NONE',
+    lore: 'Tiny grey companions pocked with impact basins. Their gentle pull makes them perfect stepping-stones — hop, charge, and leap to the next giant.',
+    astrophysicalNotes: 'Low mass and compact radius create snappy, short-period orbits ideal for chaining micro-slingshots.',
+    discoveryMilestone: 'Discovered in Sector 1 (Planets 1+)'
+  },
+  {
+    type: 'AURORA',
+    name: 'Polar Aurora Spheres',
+    subtitle: 'Class-M Magnetospheric Jewel',
+    icon: '🌌',
+    accentColor: '#22d3ee',
+    atmosphereType: 'Ionized Nitrogen Curtains',
+    gravitySignature: 'Magnetic Cradle (1.12g)',
+    hazardRisk: 'NONE',
+    lore: 'Night-side indigo worlds wrapped in living green and cyan aurora ribbons. Landing feels like stepping into a cathedral of light.',
+    astrophysicalNotes: 'Powerful magnetospheres funnel solar wind into polar ovals, supercharging nearby star collectibles.',
+    discoveryMilestone: 'Discovered in Sector 5 (Planets 161+)'
+  },
+  {
+    type: 'FUNGAL',
+    name: 'Mycelial Bloom Worlds',
+    subtitle: 'Class-B Bioluminescent Fungal Sphere',
+    icon: '🍄',
+    accentColor: '#d946ef',
+    atmosphereType: 'Spore-Mist Argon Mix',
+    gravitySignature: 'Soft Spore Well (0.96g)',
+    hazardRisk: 'LOW',
+    lore: 'Violet-teal globes forested with colossal mushroom caps. Spores glitter like slow snow, and the whole planet pulses with a gentle bioluminescent heartbeat.',
+    astrophysicalNotes: 'Symbiotic mycelium conducts weak electrical currents, producing a faint radio hymn along the equator.',
+    discoveryMilestone: 'Discovered in Sector 4 (Planets 101+)'
+  },
+  {
+    type: 'CLOUD',
+    name: 'Creamdeck Greenhouse Worlds',
+    subtitle: 'Class-V Opaque Cloud Planet',
+    icon: '☁️',
+    accentColor: '#fdba74',
+    atmosphereType: 'Sulfuric Peach Cloud Decks',
+    gravitySignature: 'Veiled Well (1.22g)',
+    hazardRisk: 'MEDIUM',
+    lore: 'Venus-like cream and apricot cloud worlds hiding a furnace below. Lightning glows gold in the depths; the surface is a rumor.',
+    astrophysicalNotes: 'Stacked cloud decks refract sunlight into a warm halo, making these giants look larger than their true radius.',
+    discoveryMilestone: 'Discovered in Sector 4 (Planets 101+)'
+  },
+  {
+    type: 'NEBULA',
+    name: 'Ember Nebula Cores',
+    subtitle: 'Class-N Condensed Emission Nebula',
+    icon: '🎆',
+    accentColor: '#f472b6',
+    atmosphereType: 'Ionized Hydrogen & Dust Veils',
+    gravitySignature: 'Diffuse Well (0.88g)',
+    hazardRisk: 'MEDIUM',
+    lore: 'Planets still being born — glowing rose and gold gas wrapped around a dense embryonic core. Flying past them is like surfing a frozen firework.',
+    astrophysicalNotes: 'Residual accretion heat keeps a luminous envelope that slowly sheds stardust into nearby orbits.',
+    discoveryMilestone: 'Discovered in Sector 6 (Planets 231+)'
   }
 ];
 

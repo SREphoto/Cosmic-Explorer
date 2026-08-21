@@ -1,4 +1,5 @@
 import { CollectibleData } from '../types/game';
+import { spriteAtlas, COLLECTIBLE_SPRITES } from '../core/SpriteAtlas';
 
 export class Collectible implements CollectibleData {
   id: string;
@@ -53,6 +54,19 @@ export class Collectible implements CollectibleData {
     ctx.save();
     ctx.translate(renderX, renderY);
     ctx.rotate(this.rotation);
+
+    const sprite = spriteAtlas.get(COLLECTIBLE_SPRITES[this.type]);
+    if (sprite) {
+      const glow = this.type === 'STAR' ? 'rgba(250, 204, 21, 0.35)' : 'rgba(56, 189, 248, 0.35)';
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 2.1, 0, Math.PI * 2);
+      ctx.fill();
+      const size = this.radius * 2.6;
+      ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+      ctx.restore();
+      return;
+    }
 
     if (this.type === 'STAR') {
       // Pick sparkle color based on ID hash (cyan, magenta, yellow, green, orange)

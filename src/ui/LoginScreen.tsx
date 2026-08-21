@@ -507,7 +507,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
       </div>
 
       <motion.div 
-        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        initial={false}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.35 }}
         className="relative w-full max-w-5xl bg-slate-900/95 border border-slate-700/80 rounded-2xl md:rounded-3xl shadow-2xl shadow-cyan-950/60 overflow-hidden text-white z-10 my-auto"
@@ -862,6 +862,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                       id="input-command-email"
                       type="email"
                       required
+                      autoComplete="username"
+                      suppressHydrationWarning
                       placeholder="commander@starfleet.galaxy"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -880,6 +882,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                       id="input-command-password"
                       type="password"
                       required
+                      autoComplete="current-password"
+                      suppressHydrationWarning
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

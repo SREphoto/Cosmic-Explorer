@@ -34,9 +34,10 @@ import {
   getXPForLevel,
   calculateTotalGearStats,
   calculateSkillBonuses,
-  getActiveSetBonus
+  getActiveSetBonus,
+  MODULE_MAX_LEVEL
 } from '../core/Config';
-import { StorageManager } from '../core/Storage';
+import { StorageManager, DEFAULT_SKILL_ALLOCATIONS } from '../core/Storage';
 import { audioEngine } from '../core/AudioEngine';
 import workshopHeroImg from '../assets/images/cosmic_hangar_banner_1786696559208.jpg';
 import cardBgImg from '../assets/images/galaxy_cosmic_bg_1786680029303.jpg';
@@ -74,7 +75,12 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
       '2 Charges · 450px Void Blast',
       '3 Charges · 550px Void Blast',
       '4 Charges · 650px Void Blast',
-      '5 Charges · Supernova Blast'
+      '5 Charges · Supernova Blast',
+      '6 Charges · Chrono Cascade',
+      '7 Charges · Twin Timeline',
+      '8 Charges · Eternal Loop',
+      '9 Charges · Paradox Guard',
+      '10 Charges · Time Lord'
     ]
   },
   {
@@ -85,7 +91,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     icon: <Magnet className="w-5 h-5 text-sky-400" />,
     themeColor: '#38bdf8',
     statLabel: 'Tractor Pull Radius',
-    statValues: ['160px (Base)', '200px (+25%)', '240px (+50%)', '280px (+75%)', '320px (Hyper-Pull)']
+    statValues: ['160px (Base)', '200px (+25%)', '240px (+50%)', '280px (+75%)', '320px (Hyper-Pull)', '360px', '400px', '450px', '510px', '580px (Event Horizon)']
   },
   {
     id: 'COMET',
@@ -95,7 +101,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     icon: <Zap className="w-5 h-5 text-amber-400" />,
     themeColor: '#f59e0b',
     statLabel: 'Comet Duration',
-    statValues: ['4.5s · 450px Push', '5.7s · 600px Push', '6.9s · 750px Push', '8.1s · 900px Push', '9.5s · Supernova Push']
+    statValues: ['4.5s · 450px Push', '5.7s · 600px Push', '6.9s · 750px Push', '8.1s · 900px Push', '9.5s · Supernova Push', '10.7s', '12.0s', '13.4s', '15.0s', '17s · Quasar Drive']
   },
   {
     id: 'JETPACK',
@@ -105,7 +111,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     icon: <Rocket className="w-5 h-5 text-rose-400" />,
     themeColor: '#f43f5e',
     statLabel: 'Rescue Charges',
-    statValues: ['1 Rescue Save', '2 Rescue Saves', '3 Rescue Saves', '4 Rescue Saves', '5 Rescue Saves (Max)']
+    statValues: ['1 Rescue Save', '2 Rescue Saves', '3 Rescue Saves', '4 Rescue Saves', '5 Rescue Saves', '6 Saves', '7 Saves', '8 Saves', '9 Saves', '10 Saves (Max)']
   },
   {
     id: 'RICOCHET',
@@ -115,7 +121,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     icon: <Footprints className="w-5 h-5 text-purple-400" />,
     themeColor: '#a855f7',
     statLabel: 'Kinetic Lift',
-    statValues: ['+55% Lift', '+70% Lift (+100 Score)', '+85% Lift (+200 Score)', '+100% Lift (+300 Score)', '+120% Orbital Slingshot']
+    statValues: ['+55% Lift', '+70% Lift (+100 Score)', '+85% Lift (+200 Score)', '+100% Lift (+300 Score)', '+120% Orbital Slingshot', '+135% Lift', '+150% Lift', '+170% Lift', '+190% Lift', '+220% Super Bounce']
   },
   {
     id: 'MULTIPLIER',
@@ -125,7 +131,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     icon: <Sparkles className="w-5 h-5 text-emerald-400" />,
     themeColor: '#34d399',
     statLabel: 'Score Multiplier',
-    statValues: ['1.0x (Standard)', '1.2x (+20% Bonus)', '1.4x (+40% Bonus)', '1.6x (+60% Bonus)', '2.0x (Double Yield)']
+    statValues: ['1.0x (Standard)', '1.2x (+20% Bonus)', '1.4x (+40% Bonus)', '1.6x (+60% Bonus)', '2.0x (Double Yield)', '2.2x', '2.5x', '2.8x', '3.2x', '3.8x (Prism Overdrive)']
   }
 ];
 
@@ -163,7 +169,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
         : 'ricochetLevel';
 
     const currentLvl = savedData.upgrades[levelKey] || 1;
-    if (currentLvl >= 5) return;
+    if (currentLvl >= MODULE_MAX_LEVEL) return;
 
     const price = UPGRADE_PRICES[type][currentLvl - 1];
     if (savedData.totalStars >= price) {
@@ -213,23 +219,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
     if (totalInvested === 0) return;
 
     audioEngine.playClick();
-    const resetAllocations: SkillTreeAllocations = {
-      GRAVITY_AFFINITY: 0,
-      ORBITAL_SLINGSHOT_MASTERY: 0,
-      AIR_DRIFT_STEERING: 0,
-      JETPACK_OVERDRIVE: 0,
-      COMET_PROPULSION: 0,
-      SUPERNOVA_MAGNET: 0,
-      STAR_HARVESTER: 0,
-      DIAMOND_TRANSMUTATION: 0,
-      COSMIC_EXPEDITION_XP: 0,
-      CHECKPOINT_FORTUNE: 0,
-      CRYO_INSULATION: 0,
-      STONE_WARD: 0,
-      VOID_REPULSOR: 0,
-      SOLAR_SHIELD: 0,
-      PHOENIX_REBIRTH: 0
-    };
+    const resetAllocations: SkillTreeAllocations = { ...DEFAULT_SKILL_ALLOCATIONS };
 
     const newSaved = StorageManager.saveData({
       skillPointsAvailable: (savedData.skillPointsAvailable || 0) + totalInvested,
@@ -846,7 +836,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
                     : 'ricochetLevel';
 
                 const currentLevel = savedData.upgrades[levelKey] || 1;
-                const isMaxed = currentLevel >= 5;
+                const isMaxed = currentLevel >= MODULE_MAX_LEVEL;
                 const price = !isMaxed ? UPGRADE_PRICES[detail.id][currentLevel - 1] : null;
                 const canAfford = price !== null && savedData.totalStars >= price;
                 const isCelebrating = celebratingUpgrade === detail.id;

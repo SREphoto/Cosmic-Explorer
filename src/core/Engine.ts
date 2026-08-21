@@ -1,5 +1,5 @@
 import { audioEngine } from './AudioEngine';
-import { PHYSICS_CONFIG, calculateTotalGearStats, calculateSkillBonuses, getXPForLevel, SPACE_ANOMALIES, ZODIAC_CONSTELLATIONS, getActiveSetBonus, LEVEL_PROGRESSION_PERKS, SECTOR_MILITARY_MEDALS, calculateTotalMedalBonuses } from './Config';
+import { PHYSICS_CONFIG, calculateTotalGearStats, calculateSkillBonuses, getXPForLevel, SPACE_ANOMALIES, ZODIAC_CONSTELLATIONS, getActiveSetBonus, LEVEL_PROGRESSION_PERKS, SECTOR_MILITARY_MEDALS, calculateTotalMedalBonuses, hasCraftedTool } from './Config';
 import { StorageManager } from './Storage';
 import { HapticManager } from '../utils/HapticManager';
 import { Collectible } from '../entities/Collectible';
@@ -103,6 +103,8 @@ export class Engine {
   public onLevelVictory: ((data: LevelVictoryData) => void) | null = null;
   private runStartTime: number = Date.now();
   private thermalShieldUsed: boolean = false;
+  private sectorFlashTimer: number = 0;
+  private lastAnnouncedLevel: number = 1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -121,6 +123,14 @@ export class Engine {
 
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
+
+    if (typeof window !== 'undefined') {
+      (window as Window & { __controlsTest?: unknown }).__controlsTest = {
+        getYaw: () => this.player.theta,
+        getSpeed: () => Math.hypot(this.player.vx, this.player.vy),
+        getMode: () => this.mode,
+      };
+    }
   }
 
   public resizeCanvas() {
@@ -164,6 +174,8 @@ export class Engine {
     this.stateHistory = [];
     this.runStartTime = Date.now();
     this.thermalShieldUsed = false;
+    this.sectorFlashTimer = 2.4;
+    this.lastAnnouncedLevel = currentLevel.levelNumber;
 
     this.stats = {
       score: 0,
@@ -188,6 +200,13 @@ export class Engine {
       currentCheckpointId: checkpointToUse,
       currentLevelNumber: currentLevel.levelNumber,
       currentLevelName: currentLevel.name,
+      currentLevelSubtitle: currentLevel.subtitle,
+      currentLevelTheme: currentLevel.themeDescription,
+      sectorFlashTimer: 2.4,
+      voidDistancePx: 420,
+      voidEtaSeconds: 99,
+      voidDangerRatio: 0,
+      voidSpeedPx: PHYSICS_CONFIG.VOID_INITIAL_SPEED,
       currentConstellationId: this.currentConstellation?.id,
       currentConstellationName: this.currentConstellation?.name,
       currentZodiacGlyph: this.currentConstellation?.glyph,
@@ -325,7 +344,7 @@ export class Engine {
     let targetPlanet: Planet | null = null;
     let minDist = Infinity;
 
-    this.planets.forEach((p) => {
+    for (const p of this.planets) {
       if (p.y < this.player.y) {
         const dx = p.x - this.player.x;
         const dy = p.y - this.player.y;
@@ -335,7 +354,7 @@ export class Engine {
           targetPlanet = p;
         }
       }
-    });
+    }
 
     const targetX = targetPlanet ? targetPlanet.x : this.player.x;
     const targetY = targetPlanet ? targetPlanet.y : this.player.y - 450;
@@ -356,6 +375,10 @@ export class Engine {
       }
     }
     return null;
+  }
+
+  public get state(): GameMode {
+    return this.mode;
   }
 
   public setMode(newMode: GameMode) {
@@ -490,7 +513,8 @@ export class Engine {
       if (this.player.rotationAccumulator >= Math.PI * 2) {
         this.player.rotationAccumulator -= Math.PI * 2;
         this.stats.fullOrbitsCompleted++;
-        this.stats.starsCollected += 15;
+        const orbitFortune = calculateSkillBonuses(this.savedData.skillTreeAllocations || ({} as any)).orbitFortuneStars || 0;
+        this.stats.starsCollected += 15 + orbitFortune;
         this.stats.score += 250;
         this.awardXP(40);
         audioEngine.playFullOrbit();
@@ -679,7 +703,7 @@ export class Engine {
           this.powerUpSystem.activateMagnet(this.savedData.upgrades, this.player);
         } else if (pu.type === 'COMET') {
           this.powerUpSystem.activateComet(this.savedData.upgrades, this.player);
-          this.voidY += PHYSICS_CONFIG.VOID_PUSHBACK_COMET; // Major void pushback
+          this.voidY += PHYSICS_CONFIG.VOID_PUSHBACK_COMET + (skillBonuses.cometVoidPushBonus || 0);
         } else if (pu.type === 'REWIND') {
           // Extra Rewind Charge + Void Pushback + Holographic Aura
           this.stats.rewindChargesRemaining = Math.min(this.stats.rewindChargesRemaining + 1, this.stats.maxRewindCharges + 2);
@@ -720,11 +744,20 @@ export class Engine {
     this.proceduralGenerator.cleanupFarObjects(this.cameraY + this.canvas.height, this.planets, this.collectibles, this.powerUps);
 
     // 8. Advancing Dark Void
-    this.voidSpeed = PHYSICS_CONFIG.VOID_INITIAL_SPEED + (this.stats.maxAltitude / 1000) * PHYSICS_CONFIG.VOID_SPEED_ACCELERATION;
+    const voidSlow = 1 - Math.min(0.55, skillBonuses.voidSlowRatio || 0);
+    this.voidSpeed = (PHYSICS_CONFIG.VOID_INITIAL_SPEED + (this.stats.maxAltitude / 1000) * PHYSICS_CONFIG.VOID_SPEED_ACCELERATION) * voidSlow;
     this.voidY -= this.voidSpeed * dt;
 
     const distToVoid = this.voidY - this.player.y;
     audioEngine.updateVoidWarning(distToVoid);
+    this.stats.voidDistancePx = distToVoid;
+    this.stats.voidSpeedPx = this.voidSpeed;
+    this.stats.voidEtaSeconds = this.voidSpeed > 1 ? Math.max(0, distToVoid / this.voidSpeed) : 99;
+    const compass = hasCraftedTool(this.savedData.homePlanet?.craftedTools as Array<{ id: string }> | undefined, 'VOID_COMPASS');
+    const warnDist = compass ? 860 : 720;
+    this.stats.voidDangerRatio = Math.max(0, Math.min(1, 1 - distToVoid / warnDist));
+    this.sectorFlashTimer = Math.max(0, this.sectorFlashTimer - dt);
+    this.stats.sectorFlashTimer = this.sectorFlashTimer;
 
     // 9. Deep Space Freezing Check (with Cryo gear and skill resistances)
     const freezeResist = Math.min(0.85, (gearStats.freezeResistancePercent || 0) / 100 + skillBonuses.freezeResistance);
@@ -733,7 +766,7 @@ export class Engine {
     if (!this.player.isAttached) {
       let minPlanetDist = Infinity;
       let closestPlanet: Planet | null = null;
-      this.planets.forEach((p) => {
+      for (const p of this.planets) {
         const dx = p.x - this.player.x;
         const dy = p.y - this.player.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -741,7 +774,7 @@ export class Engine {
           minPlanetDist = dist;
           closestPlanet = p;
         }
-      });
+      }
 
       const safeThreshold = closestPlanet ? closestPlanet.radius + 360 : 450;
       if (minPlanetDist > safeThreshold && this.stats.jetpackChargesRemaining <= 0) {
@@ -877,8 +910,16 @@ export class Engine {
 
     // Update current level and biome information
     const currentLevel = ProceduralGenerator.getLevelForPlanetIndex(this.stats.planetsLandedCount);
+    if (currentLevel.levelNumber !== this.lastAnnouncedLevel) {
+      this.lastAnnouncedLevel = currentLevel.levelNumber;
+      this.sectorFlashTimer = 2.6;
+      this.renderSystem.triggerScreenShake(14, 0.35);
+      audioEngine.playCheckpointUnlocked();
+    }
     this.stats.currentLevelNumber = currentLevel.levelNumber;
     this.stats.currentLevelName = currentLevel.name;
+    this.stats.currentLevelSubtitle = currentLevel.subtitle;
+    this.stats.currentLevelTheme = currentLevel.themeDescription;
 
     // Update current Zodiac Constellation & Constellation Progress
     this.currentConstellation = ProceduralGenerator.getConstellationForPlanetIndex(this.stats.planetsLandedCount);
@@ -1018,7 +1059,7 @@ export class Engine {
     if (!planet.visited) {
       planet.visited = true;
       // Void pushback reward for new planet landing (+ gear and skill pushbacks)
-      const pushbackBonus = (gearStats.voidPushbackBonus || 0) + skillBonuses.voidPushbackBonus;
+      const pushbackBonus = (gearStats.voidPushbackBonus || 0) + skillBonuses.voidPushbackBonus + (skillBonuses.extraLandingPush || 0);
       this.voidY += PHYSICS_CONFIG.VOID_PUSHBACK_ON_LAND + pushbackBonus;
 
       this.stats.consecutivePerfectJumps++;
@@ -1087,6 +1128,7 @@ export class Engine {
 
   private render(dt: number) {
     const prediction = PhysicsSystem.predictTrajectory(this.player, this.planets);
+    const currentLevelForRender = ProceduralGenerator.getLevelForPlanetIndex(Math.max(1, this.stats.planetsLandedCount || 1));
 
     this.renderSystem.render(
       this.ctx,
@@ -1104,7 +1146,10 @@ export class Engine {
       this.freezeRatio,
       this.currentConstellation || undefined,
       this.activeAnomaly,
-      this.savedData?.randomizeAesthetics ? this.runAestheticSeed : undefined
+      this.savedData?.randomizeAesthetics ? this.runAestheticSeed : undefined,
+      this.stats.voidDangerRatio || 0,
+      this.sectorFlashTimer,
+      currentLevelForRender
     );
 
     // Render ParticleSystem overlay

@@ -18,7 +18,14 @@ export const DEFAULT_SKILL_ALLOCATIONS: SkillTreeAllocations = {
   STONE_WARD: 0,
   VOID_REPULSOR: 0,
   SOLAR_SHIELD: 0,
-  PHOENIX_REBIRTH: 0
+  PHOENIX_REBIRTH: 0,
+  COMET_ECHO: 0,
+  VOID_ANCHOR: 0,
+  ABYSSAL_TETHER: 0,
+  HARVEST_SURGE: 0,
+  ORBITAL_FORTUNE: 0,
+  GARDEN_ALCHEMY: 0,
+  VOID_CARTOGRAPHY: 0
 };
 
 export const DEFAULT_EQUIPPED_GEAR: EquippedGear = {
@@ -84,11 +91,19 @@ export const DEFAULT_SAVE_DATA: UserSavedData = {
 
 export class StorageManager {
   public static loadData(): UserSavedData {
+    if (typeof window === 'undefined') {
+      return { ...DEFAULT_SAVE_DATA };
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        return { ...DEFAULT_SAVE_DATA, ...parsed };
+        const merged = { ...DEFAULT_SAVE_DATA, ...parsed };
+        merged.skillTreeAllocations = {
+          ...DEFAULT_SKILL_ALLOCATIONS,
+          ...(parsed.skillTreeAllocations || {})
+        };
+        return merged;
       }
     } catch (e) {
       console.warn('Failed to load saved game state, using defaults', e);
@@ -179,7 +194,10 @@ export class StorageManager {
       activeCostumeId: cloudData.activeCostumeId || local.activeCostumeId || 'ASTRONAUT',
       activeRocketSkinId: cloudData.activeRocketSkinId || local.activeRocketSkinId || 'APOLLO',
       equippedGear: cloudData.equippedGear || local.equippedGear || DEFAULT_EQUIPPED_GEAR,
-      skillTreeAllocations: cloudData.skillTreeAllocations || local.skillTreeAllocations || DEFAULT_SKILL_ALLOCATIONS,
+      skillTreeAllocations: {
+        ...DEFAULT_SKILL_ALLOCATIONS,
+        ...(cloudData.skillTreeAllocations || local.skillTreeAllocations || {})
+      },
       activeUniformMedals: unionArray(local.activeUniformMedals, cloudData.activeUniformMedals)
     };
 

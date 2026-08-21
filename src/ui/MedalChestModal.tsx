@@ -219,7 +219,7 @@ export const MedalChestModal: React.FC<MedalChestModalProps> = ({
                     Official Citation & Mission Record:
                   </h4>
                   <p className="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-                    {selectedMedal.description}
+                    {selectedMedal.description || selectedMedal.rankCitation}
                   </p>
                 </div>
 

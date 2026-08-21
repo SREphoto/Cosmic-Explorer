@@ -123,7 +123,17 @@ export type PlanetType =
   | 'NEON'
   | 'CELESTIAL_SANCTUARY'
   | 'ANTIMATTER'
-  | 'RINGED_GIANT';
+  | 'RINGED_GIANT'
+  | 'OCEAN'
+  | 'DESERT'
+  | 'JUNGLE'
+  | 'STORM'
+  | 'TOXIC'
+  | 'MOON'
+  | 'AURORA'
+  | 'FUNGAL'
+  | 'CLOUD'
+  | 'NEBULA';
 
 export interface LevelBiomeInfo {
   levelNumber: number;
@@ -225,9 +235,14 @@ export type CostumeId =
   | 'CYBER'
   | 'SOLAR_SOVEREIGN'
   | 'STELLA_MAGE'
-  | 'CRYO_ARCHON';
+  | 'CRYO_ARCHON'
+  | 'VOID_RANGER'
+  | 'NEBULA_DANCER'
+  | 'STAR_KNIGHT'
+  | 'COMET_ACE'
+  | 'AURORA_SEER';
 
-export type RocketSkinId = 'APOLLO' | 'NEON_CYBER' | 'GOLDEN_FLARE' | 'DRAGON_FIRE' | 'ALIEN_ION';
+export type RocketSkinId = 'APOLLO' | 'NEON_CYBER' | 'GOLDEN_FLARE' | 'DRAGON_FIRE' | 'ALIEN_ION' | 'VOID_DRAKE' | 'STARLIGHT_SAIL' | 'PHOENIX_CORE' | 'AURORA_WING';
 
 export interface RocketSkin {
   id: RocketSkinId;
@@ -255,12 +270,12 @@ export interface Costume {
 }
 
 export interface PowerUpUpgrades {
-  magnetLevel: number; // Level 1-5
-  cometLevel: number;  // Level 1-5
-  multiplierLevel: number; // Level 1-5
-  jetpackLevel: number; // Level 0-5 (0 = locked, 1+ = jetpack rescue charges)
-  ricochetLevel: number; // Level 0-5 (0 = locked, 1+ = rocket shoes bounce boost)
-  rewindLevel: number; // Level 0-5 (0 = locked, 1+ = Chrono Time-Warp Rewind charges & auto-rescue)
+  magnetLevel: number; // Level 1-10
+  cometLevel: number;  // Level 1-10
+  multiplierLevel: number; // Level 1-10
+  jetpackLevel: number; // Level 0-10 (0 = locked, 1+ = jetpack rescue charges)
+  ricochetLevel: number; // Level 0-10 (0 = locked, 1+ = rocket shoes bounce boost)
+  rewindLevel: number; // Level 0-10 (0 = locked, 1+ = Chrono Time-Warp Rewind charges & auto-rescue)
 }
 
 export type ObjectiveType = 
@@ -290,7 +305,7 @@ export interface StageQuest {
   rewardDiamonds: number;
 }
 
-export type SkillBranchId = 'MOBILITY' | 'MAGNETISM' | 'RESILIENCE';
+export type SkillBranchId = 'MOBILITY' | 'MAGNETISM' | 'RESILIENCE' | 'HARVEST';
 
 export type SkillId = 
   // Mobility & Slingshots
@@ -310,7 +325,14 @@ export type SkillId =
   | 'STONE_WARD'
   | 'VOID_REPULSOR'
   | 'SOLAR_SHIELD'
-  | 'PHOENIX_REBIRTH';
+  | 'PHOENIX_REBIRTH'
+  | 'COMET_ECHO'
+  | 'VOID_ANCHOR'
+  | 'ABYSSAL_TETHER'
+  | 'HARVEST_SURGE'
+  | 'ORBITAL_FORTUNE'
+  | 'GARDEN_ALCHEMY'
+  | 'VOID_CARTOGRAPHY';
 
 export interface SkillNode {
   id: SkillId;
@@ -426,6 +448,13 @@ export interface PlayerStats {
   altitudeBiomeName?: string;
   currentLevelNumber: number;
   currentLevelName: string;
+  currentLevelSubtitle?: string;
+  currentLevelTheme?: string;
+  sectorFlashTimer?: number;
+  voidDistancePx?: number;
+  voidEtaSeconds?: number;
+  voidDangerRatio?: number;
+  voidSpeedPx?: number;
   currentConstellationId?: ZodiacSignId;
   currentConstellationName?: string;
   currentZodiacGlyph?: string;
@@ -440,6 +469,7 @@ export interface PlayerStats {
   activeAnomaly?: ActiveSpaceAnomaly | null;
   phoenixReviveUsed?: boolean;
   activeSynergy?: GearSetBonus | null;
+  activeSynergyName?: string;
   runSuppliesCollected?: {
     timber: number;
     quartz: number;
@@ -457,7 +487,7 @@ export interface HomeStorageSupplies {
   starDust?: number; // Star Dust balance
 }
 
-export type HomeSeedType = 'STAR_DAISY' | 'MOON_ORCHID' | 'VOID_ROSE' | 'LUMEN_FRUIT' | 'COSMIC_LOTUS';
+export type HomeSeedType = 'STAR_DAISY' | 'MOON_ORCHID' | 'VOID_ROSE' | 'LUMEN_FRUIT' | 'COSMIC_LOTUS' | 'NEBULA_FERN' | 'SOLAR_CACTUS' | 'AURORA_IVY' | 'FROST_BLOSSOM';
 
 export interface HomeGardenPlot {
   id: string;
@@ -554,10 +584,10 @@ export interface HomePlanetData {
   name: string;
   biomeId?: string;
   biome: 'VERDANT' | 'CRYSTALLINE' | 'CYBER' | 'NEBULA' | 'VOLCANIC' | 'GLACIAL';
-  habitatTier: number; // 1 to 5
-  storageTier: number; // 1 to 5
-  greenhouseTier: number; // 1 to 5 (Plot count)
-  workshopTier: number; // 1 to 5
+  habitatTier: number; // 1 to 8
+  storageTier: number; // 1 to 8
+  greenhouseTier: number; // 1 to 8 (Plot count)
+  workshopTier: number; // 1 to 8
   supplies: HomeStorageSupplies;
   gardenPlots: HomeGardenPlot[];
   placedFurniture: HomePlacedFurniture[];
@@ -565,6 +595,10 @@ export interface HomePlanetData {
   unlockedDecorIds: string[];
   spaceTraveler?: SpaceTravelerVisit | null;
   lastSavedAt: number;
+  hasRing?: boolean;
+  ringColor?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
 }
 
 export interface DailyLeaderboardEntry {
@@ -748,6 +782,7 @@ export interface UserSavedData {
   unlockedMedalIds?: string[];
   completedLevelNumbers?: number[];
   activeUniformMedals?: string[];
+  spaceDiamonds?: number;
 }
 
 export type MedalTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'CELESTIAL';
@@ -771,6 +806,7 @@ export interface MilitaryMedal {
   ribbonColors: string[]; // 3-5 stripe colors for authentic military uniform ribbon bar
   icon: string;
   rankCitation: string;
+  description?: string;
   perkTitle: string;
   perkDescription: string;
   perkEffect: {

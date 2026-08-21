@@ -20,8 +20,7 @@ import {
   Crosshair,
   Crown
 } from 'lucide-react';
-import { FirebaseService, auth } from '../core/firebase';
-import { User } from 'firebase/auth';
+import { FirebaseService, auth, type User } from '../core/firebase';
 import { RoomData, MultiplayerMode, PlayerOnlineState } from '../types/multiplayer';
 import { UserSavedData } from '../types/game';
 import { audioEngine } from '../core/AudioEngine';

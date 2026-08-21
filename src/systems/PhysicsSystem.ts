@@ -18,7 +18,16 @@ export class PhysicsSystem {
   public static getPlanetMass(planet: Planet): number {
     const normRadius = planet.radius / 55.0;
     const massArea = Math.pow(normRadius, 2.0);
-    const typeMult = planet.type === 'SUN' ? 2.4 : planet.type === 'MECH' ? 1.35 : 1.0;
+    const typeMult =
+      planet.type === 'SUN' || planet.type === 'STORM'
+        ? 2.4
+        : planet.type === 'RINGED_GIANT' || planet.type === 'CLOUD'
+          ? 1.7
+          : planet.type === 'MECH'
+            ? 1.35
+            : planet.type === 'MOON' || planet.type === 'ASTEROID'
+              ? 0.62
+              : 1.0;
     return PHYSICS_CONFIG.PLANET_MASS_DEFAULT * massArea * typeMult;
   }
 

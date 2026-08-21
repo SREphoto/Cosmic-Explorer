@@ -24,6 +24,8 @@ import {
   HABITAT_UPGRADES
 } from '../core/Config';
 import { audioEngine } from '../core/AudioEngine';
+import { spriteAtlas, FURNITURE_SPRITES } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 
 interface VisualGardenLayoutProps {
   homePlanet: HomePlanetData;
@@ -48,6 +50,19 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
+  const [spritesReady, setSpritesReady] = useState(false);
+
+  useEffect(() => {
+    let n = 0;
+    const t = window.setInterval(() => {
+      n += 1;
+      if (spriteAtlas.biome(homePlanet.biomeId || 'VERDANT') || n > 50) {
+        setSpritesReady(true);
+        window.clearInterval(t);
+      }
+    }, 80);
+    return () => window.clearInterval(t);
+  }, [homePlanet.biomeId]);
 
   const biome = HOME_PLANET_BIOMES.find((b) => b.id === homePlanet.biomeId) || HOME_PLANET_BIOMES[0];
   const habitatDef = HABITAT_UPGRADES.find((h) => h.tier === homePlanet.habitatTier) || HABITAT_UPGRADES[0];
@@ -114,8 +129,8 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
       ctx.fillRect(sx, sy, 1.5, 1.5);
     }
 
-    // 2. Planet Surface Top-Down Disc
-    // Outer atmospheric glow
+    // 2. Painted planet globe
+    const biomeSprite = spriteAtlas.biome(biome.id);
     const atmGrad = ctx.createRadialGradient(cx, cy, radius * 0.85, cx, cy, radius * 1.15);
     atmGrad.addColorStop(0, `${biome.color}40`);
     atmGrad.addColorStop(0.7, `${biome.color}15`);
@@ -125,19 +140,29 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
     ctx.arc(cx, cy, radius * 1.15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Planet Body
-    const bodyGrad = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, radius * 0.1, cx, cy, radius);
-    bodyGrad.addColorStop(0, biome.color);
-    bodyGrad.addColorStop(0.75, biome.secondaryColor);
-    bodyGrad.addColorStop(1, '#090d16');
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fill();
+    if (biomeSprite) {
+      const size = radius * 2.08;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 1.02, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(biomeSprite, cx - size / 2, cy - size / 2, size, size);
+      ctx.restore();
+    } else {
+      const bodyGrad = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, radius * 0.1, cx, cy, radius);
+      bodyGrad.addColorStop(0, biome.color);
+      bodyGrad.addColorStop(0.75, biome.secondaryColor);
+      bodyGrad.addColorStop(1, '#090d16');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Border perimeter boundary
     ctx.strokeStyle = `${biome.color}80`;
     ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.stroke();
 
     // Concentric garden zone rings
@@ -168,19 +193,27 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, radius * 0.24, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
     ctx.fill();
     ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.font = '24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(habitatDef.icon, cx, cy - 2);
+    const habitatImg = spriteAtlas.habitat(homePlanet.habitatTier);
+    if (habitatImg) {
+      const hs = radius * 0.42;
+      ctx.drawImage(habitatImg, cx - hs / 2, cy - hs / 2 - 4, hs, hs);
+    } else {
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(habitatDef.icon, cx, cy - 2);
+    }
 
     ctx.font = 'bold 9px sans-serif';
     ctx.fillStyle = '#fde047';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillText(`Citadel T${homePlanet.habitatTier}`, cx, cy + 18);
     ctx.restore();
 
@@ -235,11 +268,16 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
         ctx.fill();
       }
 
-      // Furniture Emoji Icon
-      ctx.font = '20px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(furn.icon || catalogDef?.icon || '🪴', 0, 0);
+      // Furniture artwork sprite
+      const furnImg = spriteAtlas.furniture(furn.itemId);
+      if (furnImg) {
+        ctx.drawImage(furnImg, -18, -18, 36, 36);
+      } else {
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(furn.icon || catalogDef?.icon || '🪴', 0, 0);
+      }
 
       ctx.restore();
 
@@ -254,7 +292,7 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
       ctx.fillText(furn.name, fx, fy + 22);
       ctx.restore();
     });
-  }, [placedFurniture, selectedFurnitureId, hoveredFurnitureId, showGrid, biome, habitatDef, getCanvasMetrics]);
+  }, [placedFurniture, selectedFurnitureId, hoveredFurnitureId, showGrid, biome, habitatDef, getCanvasMetrics, spritesReady, homePlanet.habitatTier]);
 
   // Convert Mouse/Touch coordinate to Canvas relative coords
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -544,7 +582,7 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
         {/* Selected Item Floating Controls Overlay */}
         {selectedItem && (
           <div className="absolute top-3 left-3 bg-slate-900/95 border border-sky-500/50 shadow-xl rounded-2xl p-2.5 flex items-center gap-2 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 z-20">
-            <span className="text-xl">{selectedItem.icon}</span>
+            <ItemSprite src={FURNITURE_SPRITES[selectedItem.itemId]} fallback={selectedItem.icon} className="w-8 h-8 object-contain" alt="" />
             <div className="pr-2 border-r border-slate-700">
               <span className="font-bold text-white block">{selectedItem.name}</span>
               <span className="text-[10px] text-sky-400 font-mono">
@@ -607,7 +645,7 @@ export const VisualGardenLayout: React.FC<VisualGardenLayoutProps> = ({
                   className="bg-slate-950/60 border border-slate-800 hover:border-purple-500/50 rounded-xl p-2 flex items-center justify-between gap-2 transition group"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xl shrink-0">{item.icon}</span>
+                    <ItemSprite src={FURNITURE_SPRITES[item.id]} fallback={item.icon} className="w-8 h-8 object-contain shrink-0" alt={item.name} />
                     <div className="min-w-0">
                       <span className="font-bold text-xs text-white block truncate">{item.name}</span>
                       <span className="text-[10px] text-slate-400 block font-mono">

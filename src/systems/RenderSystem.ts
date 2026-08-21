@@ -3,7 +3,7 @@ import { Planet } from '../entities/Planet';
 import { Player } from '../entities/Player';
 import { PowerUp } from '../entities/PowerUp';
 import { TrajectoryPrediction } from './PhysicsSystem';
-import { ActiveSpaceAnomaly, ConstellationData } from '../types/game';
+import { ActiveSpaceAnomaly, ConstellationData, LevelBiomeInfo } from '../types/game';
 import { ZODIAC_CONSTELLATIONS } from '../core/Config';
 import cosmicBgUrl from '../assets/images/galaxy_cosmic_bg_1786680029303.jpg';
 
@@ -308,7 +308,10 @@ export class RenderSystem {
     freezeRatio: number = 0,
     currentConstellation?: ConstellationData,
     activeAnomaly?: ActiveSpaceAnomaly | null,
-    aestheticSeed?: number
+    aestheticSeed?: number,
+    voidDangerRatio: number = 0,
+    sectorFlashTimer: number = 0,
+    currentLevel?: LevelBiomeInfo
   ) {
     // Screen shake calculation
     ctx.save();
@@ -341,11 +344,39 @@ export class RenderSystem {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
+    // Dramatic sector color wash so biome changes are obvious
+    const washColors = currentLevel?.nebulaColors || currentConstellation?.nebulaColors;
+    if (washColors && washColors.length > 0) {
+      ctx.save();
+      const wash = ctx.createRadialGradient(width * 0.5, height * 0.38, 20, width * 0.5, height * 0.42, Math.max(width, height) * 0.85);
+      wash.addColorStop(0, washColors[0]);
+      wash.addColorStop(0.55, washColors[1] || washColors[0]);
+      wash.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = wash;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+
+    if (currentLevel?.bgGradient) {
+      ctx.save();
+      const sectorBand = ctx.createLinearGradient(0, 0, 0, height);
+      sectorBand.addColorStop(0, currentLevel.bgGradient[0] + '00');
+      sectorBand.addColorStop(0.08, currentLevel.bgGradient[1]);
+      sectorBand.addColorStop(0.18, 'rgba(0,0,0,0)');
+      sectorBand.addColorStop(0.82, 'rgba(0,0,0,0)');
+      sectorBand.addColorStop(1, currentLevel.bgGradient[2]);
+      ctx.globalAlpha = 0.42;
+      ctx.fillStyle = sectorBand;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+
     // Dynamic Multi-Layer Parallax Background System
     // Layer 0: Ultra-Deep Celestial Texture Image
     if (this.bgImage && this.bgImageLoaded) {
       ctx.save();
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = 0.22;
       const imgW = this.bgImage.width;
       const imgH = this.bgImage.height;
       const scale = Math.max(width / imgW, (height * 1.6) / imgH);
@@ -579,6 +610,39 @@ export class RenderSystem {
     // 11. Stone Petrification Warning HUD Indicator
     if (player.petrificationRatio > 0.08) {
       this.renderPetrificationWarning(ctx, width, height, player.petrificationRatio);
+    }
+
+    // Void danger vignette — edges bleed darkness as the abyss closes in
+    if (voidDangerRatio > 0.18) {
+      ctx.save();
+      const vig = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.22, width / 2, height / 2, Math.max(width, height) * 0.72);
+      const a = 0.12 + voidDangerRatio * 0.55;
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, `rgba(76, 5, 25, ${a.toFixed(3)})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+
+    // Sector crossing title card on the canvas
+    if (sectorFlashTimer > 0 && currentLevel) {
+      ctx.save();
+      const flashAlpha = Math.min(1, sectorFlashTimer / 0.6) * Math.min(1, (2.6 - sectorFlashTimer) / 0.45);
+      ctx.globalAlpha = 0.22 * Math.max(0.2, flashAlpha);
+      ctx.fillStyle = currentLevel.bgGradient[1];
+      ctx.fillRect(0, height * 0.36, width, 88);
+      ctx.globalAlpha = Math.max(0.4, flashAlpha);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 18px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = currentLevel.nebulaColors[0] || '#38bdf8';
+      ctx.shadowBlur = 16;
+      ctx.fillText(currentLevel.name, width / 2, height * 0.36 + 38);
+      ctx.font = '11px "Trebuchet MS", sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.shadowBlur = 0;
+      ctx.fillText(currentLevel.subtitle, width / 2, height * 0.36 + 58);
+      ctx.restore();
     }
 
     ctx.restore(); // Screen shake restore

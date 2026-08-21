@@ -1,6 +1,8 @@
 import React from 'react';
-import { Pause, Star, Gem, Compass, Zap, Magnet, Award, MapPin, Sparkles, Clock, RotateCcw, Telescope } from 'lucide-react';
+import { Pause, Compass, Zap, Magnet, Award, MapPin, Sparkles, Clock, RotateCcw, Telescope, AlertTriangle } from 'lucide-react';
 import { PlayerStats, StageQuest } from '../types/game';
+import { COLLECTIBLE_SPRITES } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 
 interface HUDProps {
   stats: PlayerStats;
@@ -35,6 +37,11 @@ export const HUD: React.FC<HUDProps> = ({
 }) => {
   const constellationProgress = Math.min(100, Math.max(0, Math.round((stats.currentConstellationProgressRatio ?? 0) * 100)));
   const currentZodiacColor = stats.currentZodiacColor || '#38bdf8';
+  const voidDanger = Math.max(0, Math.min(1, stats.voidDangerRatio ?? 0));
+  const voidEta = Math.max(0, stats.voidEtaSeconds ?? 0);
+  const voidDist = Math.max(0, Math.round(stats.voidDistancePx ?? 0));
+  const voidColor = voidDanger > 0.72 ? '#f43f5e' : voidDanger > 0.45 ? '#f59e0b' : '#38bdf8';
+  const sectorFlash = (stats.sectorFlashTimer ?? 0) > 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-4 z-10 select-none">
@@ -73,21 +80,21 @@ export const HUD: React.FC<HUDProps> = ({
 
           {/* Currencies, XP Bar & Synergy */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {stats.activeSynergyName && (
+            {(stats.activeSynergyName || stats.activeSynergy?.name) && (
               <div className="bg-amber-950/80 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-amber-400/50 text-amber-300 text-xs font-black flex items-center gap-1 shadow-md shadow-amber-500/20">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden sm:inline">{stats.activeSynergyName}</span>
+                <span className="hidden sm:inline">{(stats.activeSynergyName || stats.activeSynergy?.name)}</span>
                 <span className="sm:hidden">Set Bonus</span>
               </div>
             )}
 
             <div className="bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1 shadow">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <ItemSprite src={COLLECTIBLE_SPRITES.STAR} className="w-4 h-4 object-contain" alt="Stars" />
               <span>{stats.starsCollected}</span>
             </div>
 
             <div className="bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-sky-500/30 text-sky-300 text-xs font-bold flex items-center gap-1 shadow">
-              <Gem className="w-3.5 h-3.5 fill-sky-400 text-sky-400" />
+              <ItemSprite src={COLLECTIBLE_SPRITES.DIAMOND} className="w-4 h-4 object-contain" alt="Diamonds" />
               <span>{stats.diamondsCollected}</span>
             </div>
 
@@ -97,6 +104,18 @@ export const HUD: React.FC<HUDProps> = ({
                 <span>+{stats.xpEarnedRun} XP</span>
               </div>
             )}
+
+            <div
+              className={`bg-slate-950/85 backdrop-blur-md px-2.5 py-1.5 rounded-full border text-xs font-black flex items-center gap-1 shadow ${voidDanger > 0.72 ? 'animate-pulse' : ''}`}
+              style={{
+                borderColor: `${voidColor}99`,
+                color: voidColor,
+                boxShadow: `0 0 10px ${voidColor}44`
+              }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{voidEta >= 99 ? 'SAFE' : `${voidEta.toFixed(1)}s`}</span>
+            </div>
           </div>
         </div>
 
@@ -233,6 +252,61 @@ export const HUD: React.FC<HUDProps> = ({
             </div>
           )}
         </div>
+
+        {/* Void closeness meter + ETA */}
+        <div
+          className={`w-full bg-slate-950/85 backdrop-blur-md rounded-xl px-3 py-2 border shadow-xl ${voidDanger > 0.72 ? 'animate-pulse' : ''}`}
+          style={{
+            borderColor: `${voidColor}88`,
+            boxShadow: `0 0 16px ${voidColor}33`
+          }}
+        >
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: voidColor }} />
+              <span className="text-[10px] font-black tracking-widest uppercase" style={{ color: voidColor }}>
+                Darkness
+              </span>
+              <span className="text-[10px] text-slate-300 font-semibold truncate">
+                {voidDist}m away
+              </span>
+            </div>
+            <span className="text-[11px] font-black font-mono shrink-0" style={{ color: voidColor }}>
+              {voidEta >= 99 ? 'SAFE' : `${voidEta.toFixed(1)}s`}
+            </span>
+          </div>
+          <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden border border-slate-700/60">
+            <div
+              className="h-full rounded-full transition-all duration-150"
+              style={{
+                width: `${Math.round(voidDanger * 100)}%`,
+                backgroundColor: voidColor,
+                boxShadow: `0 0 8px ${voidColor}`
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Sector entry flash */}
+        {sectorFlash && stats.currentLevelName && (
+          <div
+            className="w-full bg-slate-950/90 backdrop-blur-md rounded-xl px-3 py-2.5 border-2 shadow-2xl animate-pulse"
+            style={{
+              borderColor: currentZodiacColor,
+              boxShadow: `0 0 22px ${currentZodiacColor}55`
+            }}
+          >
+            <div className="text-[10px] font-black tracking-[0.2em] uppercase text-amber-300">
+              Sector Crossing
+            </div>
+            <div className="text-sm font-black text-white leading-tight">
+              {stats.currentLevelName}
+            </div>
+            {stats.currentLevelSubtitle && (
+              <div className="text-[10px] text-slate-300 mt-0.5">{stats.currentLevelSubtitle}</div>
+            )}
+          </div>
+        )}
 
         {/* Dynamic Space Anomaly Active Banner */}
         {stats.activeAnomaly && (

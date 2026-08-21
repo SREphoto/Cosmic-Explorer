@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   X,
-  MapPin,
   Lock,
   Rocket,
   Compass,
@@ -12,6 +11,8 @@ import { CHECKPOINT_PLANETS } from '../core/Config';
 import { UserSavedData } from '../types/game';
 import { audioEngine } from '../core/AudioEngine';
 import galaxyMapBannerImg from '../assets/images/galaxy_map_banner_1786696571856.jpg';
+import { PLANET_SPRITES } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 
 interface GalaxyMapModalProps {
   savedData: UserSavedData;
@@ -96,18 +97,23 @@ export const GalaxyMapModal: React.FC<GalaxyMapModalProps> = ({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    {/* Planet Sphere Miniature Icon */}
+                    {/* Planet Sphere Miniature */}
                     <div
-                      className="w-11 h-11 rounded-full border-2 flex items-center justify-center relative shrink-0"
+                      className="w-12 h-12 rounded-full border-2 flex items-center justify-center relative shrink-0 overflow-hidden"
                       style={{
-                        backgroundColor: cp.primaryColor,
                         borderColor: isSelected ? '#38bdf8' : isUnlocked ? '#facc15' : '#475569',
+                        backgroundColor: '#020617',
                       }}
                     >
-                      {isUnlocked ? (
-                        <MapPin className="w-4 h-4 text-white" />
-                      ) : (
-                        <Lock className="w-4 h-4 text-slate-400" />
+                      <ItemSprite
+                        src={PLANET_SPRITES[cp.planetType]}
+                        className="w-12 h-12 object-cover"
+                        alt={cp.name}
+                      />
+                      {!isUnlocked && (
+                        <div className="absolute inset-0 bg-slate-950/55 flex items-center justify-center">
+                          <Lock className="w-4 h-4 text-slate-300" />
+                        </div>
                       )}
 
                       <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-slate-900 border border-slate-700 text-[9px] font-semibold text-amber-300">

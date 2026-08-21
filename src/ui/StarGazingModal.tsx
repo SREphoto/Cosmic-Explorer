@@ -21,7 +21,8 @@ import {
 import { Planet } from '../entities/Planet';
 import { ConstellationData, ConstellationStar, PlanetType } from '../types/game';
 import { audioEngine } from '../core/AudioEngine';
-import { getStarGazingWeather, StarGazingWeatherConfig } from '../core/Config';
+import { getStarGazingWeather, StarGazingWeatherConfig, calculateSkillBonuses, hasCraftedTool } from '../core/Config';
+import { StorageManager } from '../core/Storage';
 import { 
   CloudRain, 
   Wind, 
@@ -607,7 +608,18 @@ export const StarGazingModal: React.FC<StarGazingModalProps> = ({
       setHasScanned(true);
       const earnedStars = 45 + Math.floor(Math.random() * 50);
       const earnedDiamonds = Math.random() < 0.6 ? 2 : 0;
-      const earnedDust = 30 + Math.floor(Math.random() * 40);
+      let earnedDust = 30 + Math.floor(Math.random() * 40);
+      try {
+        const data = StorageManager.loadData();
+        const tools = data.homePlanet?.craftedTools as Array<{ id: string }> | undefined;
+        let dustMult = 1;
+        if (hasCraftedTool(tools, 'BIO_SCANNER_MK2')) dustMult += 0.5;
+        if (hasCraftedTool(tools, 'PRISM_SPYGLASS')) dustMult += 0.75;
+        dustMult += calculateSkillBonuses(data.skillTreeAllocations || ({} as any)).starGazeDustBonus || 0;
+        earnedDust = Math.round(earnedDust * dustMult);
+      } catch {
+        /* guest play without save is fine */
+      }
       setScanResult({ stars: earnedStars, diamonds: earnedDiamonds, starDust: earnedDust });
       if (onRewardClaimed) {
         onRewardClaimed(earnedStars, earnedDiamonds, earnedDust);

@@ -80,6 +80,46 @@ const DAILY_TEMPLATES: {
     baseTarget: 3,
     stars: 350,
     diamonds: 15
+  },
+  {
+    id: 'DAILY_ORBITS',
+    title: 'Ring Dancer',
+    description: 'Complete {target} full 360° orbits in a single voyage',
+    icon: '🔄',
+    type: 'FULL_ROTATIONS',
+    baseTarget: 6,
+    stars: 380,
+    diamonds: 14
+  },
+  {
+    id: 'DAILY_VOID_RUN',
+    title: 'Darkness Outrunner',
+    description: 'Reach {target}m while staying ahead of the climbing void',
+    icon: '🌑',
+    type: 'REACH_ALTITUDE',
+    baseTarget: 5000,
+    stars: 420,
+    diamonds: 16
+  },
+  {
+    id: 'DAILY_DIAMOND_STORM',
+    title: 'Prism Rain',
+    description: 'Collect {target} Space Diamonds before the void closes in',
+    icon: '💠',
+    type: 'COLLECT_DIAMONDS_SINGLE_RUN',
+    baseTarget: 5,
+    stars: 480,
+    diamonds: 22
+  },
+  {
+    id: 'DAILY_COMBO',
+    title: 'Perfect Cascade',
+    description: 'Chain {target} Consecutive Perfect Jumps in one flight',
+    icon: '✨',
+    type: 'CONSECUTIVE_PERFECT_JUMPS',
+    baseTarget: 7,
+    stars: 520,
+    diamonds: 20
   }
 ];
 
@@ -196,7 +236,58 @@ const MISSION_POOL: MissionTemplateDef[] = [
     multiplier: 1,
     rewardStarDust: 145,
     rewardStars: 310,
-    evaluate: (s) => s.perfectJumpsCount
+    evaluate: (s) => s.perfectJumpsCount ?? 0
+  },
+  {
+    key: 'ORBIT_RING',
+    title: 'Full Circle',
+    template: 'Complete {n} full planetary orbits in one voyage',
+    icon: '🔄',
+    category: 'JUMP',
+    baseTarget: 5,
+    multiplier: 1,
+    rewardStarDust: 170,
+    rewardStars: 360,
+    rewardDiamonds: 8,
+    evaluate: (s) => s.fullOrbitsCompleted
+  },
+  {
+    key: 'VOID_OUTRUN',
+    title: 'Abyss Outrunner',
+    template: 'Stay ahead of the darkness and climb beyond {n}m',
+    icon: '🌑',
+    category: 'EXPLORE',
+    baseTarget: 4500,
+    multiplier: 100,
+    rewardStarDust: 180,
+    rewardStars: 380,
+    rewardDiamonds: 8,
+    evaluate: (s) => s.maxAltitude
+  },
+  {
+    key: 'PLANET_HOPPER',
+    title: 'World Hopper',
+    template: 'Land on {n} unique worlds before the void claims you',
+    icon: '🌍',
+    category: 'EXPLORE',
+    baseTarget: 20,
+    multiplier: 1,
+    rewardStarDust: 160,
+    rewardStars: 340,
+    evaluate: (s) => s.planetsLandedCount
+  },
+  {
+    key: 'SUN_BELT',
+    title: 'Solar Belt',
+    template: 'Kiss {n} suns in a single voyage',
+    icon: '🌞',
+    category: 'SPECIAL',
+    baseTarget: 3,
+    multiplier: 1,
+    rewardStarDust: 220,
+    rewardStars: 500,
+    rewardDiamonds: 12,
+    evaluate: (s) => s.sunsLandedCount
   }
 ];
 
@@ -216,11 +307,11 @@ export class DailyChallengeSystem {
     const todayKey = this.getTodayDateKey();
 
     // Check if valid daily missions exist in save
-    if (savedData.dailyMissions && savedData.dailyMissions.dateKey === todayKey && savedData.dailyMissions.missions.length === 3) {
+    if (savedData.dailyMissions && savedData.dailyMissions.dateKey === todayKey && savedData.dailyMissions.missions.length >= 4) {
       return savedData.dailyMissions.missions;
     }
 
-    // Procedurally generate 3 deterministic missions for today
+    // Procedurally generate 4 deterministic missions for today
     let seed = 0;
     for (let i = 0; i < todayKey.length; i++) {
       seed = (seed * 37 + todayKey.charCodeAt(i)) >>> 0;
@@ -233,7 +324,7 @@ export class DailyChallengeSystem {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    const selected = shuffled.slice(0, 3);
+    const selected = shuffled.slice(0, 4);
     const newMissions: DailyMission[] = selected.map((mDef, index) => {
       // Calculate target
       const target = mDef.baseTarget;
@@ -251,7 +342,7 @@ export class DailyChallengeSystem {
         claimed: false,
         rewardStarDust: mDef.rewardStarDust,
         rewardStars: mDef.rewardStars,
-        rewardDiamonds: mDef.rewardDiamonds
+        rewardDiamonds: mDef.rewardDiamonds ?? 0
       };
     });
 

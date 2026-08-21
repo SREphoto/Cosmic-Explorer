@@ -15,10 +15,8 @@ import {
   CheckCircle2,
   HelpCircle,
   Compass,
-  MapPin,
   Swords,
   LogIn,
-  Home,
   Award
 } from 'lucide-react';
 import { UserSavedData } from '../types/game';
@@ -33,6 +31,9 @@ import btnHangarUrl from '../assets/images/button_bg_hangar_1786730840997.jpg';
 import btnUpgradesUrl from '../assets/images/button_bg_upgrades_1786730854147.jpg';
 import btnBadgesUrl from '../assets/images/button_bg_badges_1786730869125.jpg';
 import btnQuestsUrl from '../assets/images/button_bg_quests_1786730883413.jpg';
+import leoIconUrl from '../assets/images/little_galaxy_icon_1786680049991.jpg';
+import { PLANET_SPRITES, BIOME_SPRITES } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 
 interface MainMenuProps {
   savedData: UserSavedData;
@@ -70,7 +71,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onClaimDailyChallenge
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>(DailyChallengeSystem.getTimeUntilNextReset());
-  const [user, setUser] = useState(auth.currentUser);
+  const [user, setUser] = useState<typeof auth.currentUser>(null);
 
   useEffect(() => {
     const unsub = FirebaseService.onAuthChange((u) => setUser(u));
@@ -216,7 +217,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           />
           <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-2 flex items-center gap-2.5 shadow-lg">
             <div className="w-10 h-10 rounded-lg overflow-hidden border border-amber-500/30">
-              <img src="/src/assets/images/little_galaxy_icon_1786680049991.jpg" alt="Leo" className="w-full h-full object-cover" />
+              <img src={leoIconUrl} alt="Leo" className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col justify-center">
               <span className="text-[9px] font-black uppercase text-amber-400 tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded w-max mb-0.5">Cosmic Jumper</span>
@@ -307,8 +308,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             className="bg-slate-900/80 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 px-3 py-2.5 rounded-2xl text-left flex items-center justify-between shadow-sm transition-all duration-200 btn-grow-sm glow-subtle-hover group"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-slate-800 flex items-center justify-center text-sky-400 shrink-0">
-                <MapPin className="w-3.5 h-3.5" />
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-sky-500/40 shrink-0 bg-slate-950">
+                <ItemSprite src={PLANET_SPRITES[selectedCp.planetType]} className="w-8 h-8 object-cover" alt="" />
               </div>
               <div className="min-w-0">
                 <span className="text-[9px] uppercase font-semibold text-slate-400 tracking-wider block">
@@ -333,8 +334,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             className="bg-slate-900/80 hover:bg-emerald-950/30 border border-slate-800 hover:border-emerald-500/50 px-3 py-2.5 rounded-2xl text-left flex items-center justify-between shadow-sm transition-all duration-200 btn-grow-sm glow-emerald-hover group"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                <Home className="w-3.5 h-3.5" />
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-500/40 shrink-0 bg-slate-950">
+                <ItemSprite
+                  src={BIOME_SPRITES[savedData.homePlanet?.biomeId || 'VERDANT']}
+                  className="w-8 h-8 object-cover"
+                  alt=""
+                />
               </div>
               <div className="min-w-0">
                 <span className="text-[9px] uppercase font-semibold text-emerald-400 tracking-wider block">

@@ -63,6 +63,7 @@ export class Player {
   public facingSign: number = 1;
   public walkDir: -1 | 0 | 1 = 0;
   public isExploring: boolean = false;
+  public walkAnim: number = 0;
   public equippedGearIds: EquippedGear = {
     helmetId: 'HELMET_DEFAULT',
     suitId: 'SUIT_DEFAULT',
@@ -228,6 +229,8 @@ export class Player {
 
   public update(dt: number) {
     this.gadgetFlashTimer = Math.max(0, this.gadgetFlashTimer - dt * 2.2);
+    const orbitMoving = this.isAttached && (this.isExploring ? this.walkDir !== 0 : true);
+    if (orbitMoving) this.walkAnim += dt * 10;
     // 1. Smooth Spring Elastic Squash/Stretch Recovery
     this.landSquash += (1.0 - this.landSquash) * (9.5 * dt);
     this.landStretch += (1.0 - this.landStretch) * (9.5 * dt);
@@ -496,7 +499,7 @@ export class Player {
       this.drawIceShieldAura(ctx);
     }
 
-    const walkFrame = Math.abs(this.runCycle * 0.55) | 0;
+    const walkFrame = Math.floor(Math.abs(this.walkAnim));
     const moving = this.isAttached && (this.isExploring ? this.walkDir !== 0 : true);
     const pose = !this.isAttached ? 'flight' : moving ? 'walk' : 'idle';
     const costumeImg =

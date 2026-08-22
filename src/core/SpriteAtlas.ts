@@ -1,6 +1,6 @@
 import type { CosmicGadgetId, CostumeId, PlanetType, PowerUpType, RocketSkinId } from '../types/game';
 
-const REV = 'v7';
+const REV = 'v8';
 
 export const PLANET_SPRITES: Record<PlanetType, string> = {
   GRASS: `/sprites/planets/grass.png?${REV}`,
@@ -225,9 +225,12 @@ export const RESOURCE_SPRITES = {
   diamond: `/sprites/resources/diamond.png?${REV}`,
 };
 
-export const COSTUME_WALK_FRAMES: Partial<Record<CostumeId, string[]>> = {
-  ASTRONAUT: [0, 1, 2, 3].map((n) => `/sprites/characters/astronaut_walk_${n}.png?${REV}`),
-};
+export const COSTUME_WALK_FRAMES: Record<CostumeId, string[]> = Object.fromEntries(
+  (Object.keys(COSTUME_SPRITES) as CostumeId[]).map((id) => {
+    const file = id.toLowerCase();
+    return [id, [0, 1, 2, 3, 4, 5, 6, 7].map((n) => `/sprites/characters/${file}_walk_${n}.png?${REV}`)];
+  })
+) as Record<CostumeId, string[]>;
 
 export const COLLECTIBLE_SPRITES = {
   STAR: `/sprites/items/star.png?${REV}`,

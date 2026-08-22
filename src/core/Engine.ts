@@ -1,5 +1,5 @@
 import { audioEngine } from './AudioEngine';
-import { PHYSICS_CONFIG, calculateTotalGearStats, calculateSkillBonuses, getXPForLevel, SPACE_ANOMALIES, ZODIAC_CONSTELLATIONS, getActiveSetBonus, LEVEL_PROGRESSION_PERKS, SECTOR_MILITARY_MEDALS, calculateTotalMedalBonuses, hasCraftedTool } from './Config';
+import { PHYSICS_CONFIG, calculateTotalGearStats, calculateSkillBonuses, getXPForLevel, SPACE_ANOMALIES, ZODIAC_CONSTELLATIONS, getActiveSetBonus, LEVEL_PROGRESSION_PERKS, SECTOR_MILITARY_MEDALS, calculateTotalMedalBonuses, hasCraftedTool, COSMIC_GADGETS } from './Config';
 import { StorageManager } from './Storage';
 import { HapticManager } from '../utils/HapticManager';
 import { Collectible } from '../entities/Collectible';
@@ -15,7 +15,7 @@ import { RenderSystem } from '../systems/RenderSystem';
 import { RicochetSystem } from '../systems/RicochetSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { CosmicEventSystem } from '../systems/CosmicEventSystem';
-import { GameMode, PlayerStats, UserSavedData, ActiveSpaceAnomaly, ConstellationData, SpaceAnomalyData, LevelVictoryData } from '../types/game';
+import { GameMode, PlayerStats, UserSavedData, ActiveSpaceAnomaly, ConstellationData, SpaceAnomalyData, LevelVictoryData, CosmicGadgetId } from '../types/game';
 
 interface PlayerStateSnapshot {
   x: number;
@@ -55,6 +55,7 @@ export class Engine {
 
   public freezeTimer: number = 0;
   public freezeRatio: number = 0;
+  public iceShieldTimer: number = 0;
 
   public darkPlanetStayTimer: number = 0;
   public stoneWarningTimer: number = 0;
@@ -84,6 +85,9 @@ export class Engine {
     jetpackChargesRemaining: 1,
     rewindChargesRemaining: 1,
     maxRewindCharges: 1,
+    gadgetChargesRemaining: 2,
+    equippedGadgetId: 'VOID_FLARE',
+    iceShieldTimer: 0,
     isRewinding: false,
     fullOrbitsCompleted: 0,
     ricochetsExecuted: 0,
@@ -163,6 +167,10 @@ export class Engine {
     const medalBonuses = calculateTotalMedalBonuses(this.savedData.unlockedMedalIds || []);
     const initialJetpack = (this.savedData.upgrades.jetpackLevel || 1) + (skillBonuses.freeJetpackCharges || 0) + medalBonuses.jetpackChargesBonus;
     const initialRewind = (this.savedData.upgrades.rewindLevel || 1) + (gearStats.rewindChargesBonus || 0) + medalBonuses.rewindChargesBonus;
+    const equippedGadgetId = this.savedData.equippedGadgetId || 'VOID_FLARE';
+    const gadgetDef = COSMIC_GADGETS.find((g) => g.id === equippedGadgetId) || COSMIC_GADGETS[0];
+    const gadgetUnlocked = (this.savedData.unlockedGadgetIds || ['VOID_FLARE']).includes(gadgetDef.id);
+    const initialGadgetCharges = gadgetUnlocked ? gadgetDef.chargesPerRun : 0;
     const checkpointToUse = startCheckpointId || this.savedData.selectedStartCheckpointId || 'CHECKPOINT_EARTH';
 
     const currentLevel = ProceduralGenerator.getLevelForPlanetIndex(1);
@@ -193,6 +201,9 @@ export class Engine {
       jetpackChargesRemaining: initialJetpack,
       rewindChargesRemaining: initialRewind,
       maxRewindCharges: initialRewind,
+      gadgetChargesRemaining: initialGadgetCharges,
+      equippedGadgetId: gadgetUnlocked ? gadgetDef.id : null,
+      iceShieldTimer: 0,
       isRewinding: false,
       fullOrbitsCompleted: 0,
       ricochetsExecuted: 0,
@@ -232,6 +243,8 @@ export class Engine {
     this.voidSpeed = PHYSICS_CONFIG.VOID_INITIAL_SPEED;
     this.freezeTimer = 0;
     this.freezeRatio = 0;
+    this.iceShieldTimer = 0;
+    this.player.iceShieldActive = false;
     this.darkPlanetStayTimer = 0;
     this.stoneWarningTimer = 0;
 
@@ -363,6 +376,115 @@ export class Engine {
     this.player.activateJetpackThrust(targetX, targetY);
     this.voidY += 160; // Extra pushback on jetpack rescue
     audioEngine.playJetpack();
+  }
+
+  public triggerGadget(): boolean {
+    if (this.mode !== 'PLAYING') return false;
+    if ((this.stats.gadgetChargesRemaining || 0) <= 0) return false;
+
+    const gadgetId = (this.stats.equippedGadgetId || this.savedData.equippedGadgetId) as CosmicGadgetId | null;
+    if (!gadgetId) return false;
+    const gadget = COSMIC_GADGETS.find((g) => g.id === gadgetId);
+    if (!gadget) return false;
+
+    this.stats.gadgetChargesRemaining = (this.stats.gadgetChargesRemaining || 1) - 1;
+    this.player.gadgetFlashTimer = 0.7;
+    this.particleSystem.emitLandingSparkles(this.player.x, this.player.y, gadget.color);
+    this.renderSystem.triggerScreenShake(10, 0.22);
+    HapticManager.triggerMedium();
+    audioEngine.playPowerUpCollect();
+
+    switch (gadget.effect) {
+      case 'VOID_PUSH':
+        this.voidY += 480;
+        break;
+      case 'STAR_BURST':
+        this.spawnBurstCollectibles('STAR', 8, 46);
+        this.stats.score += 120;
+        break;
+      case 'ICE_SHIELD':
+        this.iceShieldTimer = 8;
+        this.player.iceShieldActive = true;
+        this.freezeTimer = 0;
+        this.freezeRatio = 0;
+        break;
+      case 'DIAMOND_RAIN':
+        this.spawnBurstCollectibles('DIAMOND', 4, 52);
+        this.stats.score += 200;
+        break;
+      case 'ORBIT_BLESS': {
+        const nearest = this.findNearestPlanet(true);
+        if (nearest) {
+          this.player.attachToPlanet(nearest);
+          this.lastSafeLandedPlanet = nearest;
+          this.voidY += 180;
+          this.stats.score += 150;
+        } else {
+          this.pullTowardNearestPlanet();
+        }
+        break;
+      }
+      case 'MAGNET_PULSE':
+        this.powerUpSystem.activateMagnet(this.savedData.upgrades, this.player);
+        this.powerUpSystem.magnetTimer = Math.max(this.powerUpSystem.magnetTimer, 5.5);
+        this.powerUpSystem.magnetRadius += 80;
+        break;
+      case 'SOLAR_CELL':
+        this.powerUpSystem.activateComet(this.savedData.upgrades, this.player);
+        this.stats.score += 250;
+        this.voidY += 220;
+        break;
+      case 'GRAVITY_HOOK':
+        this.pullTowardNearestPlanet();
+        break;
+      case 'PHOENIX_CHARM':
+        this.stats.phoenixReviveUsed = false;
+        this.stats.jetpackChargesRemaining += 1;
+        this.voidY += 360;
+        this.player.vy = Math.min(this.player.vy, -420);
+        break;
+    }
+
+    this.stats.powerUpsUsedCount++;
+    return true;
+  }
+
+  private spawnBurstCollectibles(type: 'STAR' | 'DIAMOND', count: number, radius: number) {
+    for (let i = 0; i < count; i++) {
+      const sa = (i / count) * Math.PI * 2;
+      this.collectibles.push(
+        new Collectible({
+          id: `gadget_${type}_${Date.now()}_${i}`,
+          x: this.player.x + Math.cos(sa) * radius,
+          y: this.player.y + Math.sin(sa) * radius,
+          type,
+          radius: type === 'DIAMOND' ? 11 : 9
+        })
+      );
+    }
+  }
+
+  private findNearestPlanet(preferAbove: boolean): Planet | null {
+    let best: Planet | null = null;
+    let minDist = Infinity;
+    for (const p of this.planets) {
+      if (preferAbove && p.y > this.player.y + 40) continue;
+      const dist = Math.hypot(p.x - this.player.x, p.y - this.player.y);
+      if (dist < minDist) {
+        minDist = dist;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  private pullTowardNearestPlanet() {
+    const target = this.findNearestPlanet(true) || this.findNearestPlanet(false);
+    if (!target) {
+      this.player.vy = -PHYSICS_CONFIG.JETPACK_THRUST_SPEED;
+      return;
+    }
+    this.player.activateJetpackThrust(target.x, target.y);
   }
 
   private findNearbyPlanetForRicochet(): Planet | null {
@@ -759,11 +881,18 @@ export class Engine {
     this.sectorFlashTimer = Math.max(0, this.sectorFlashTimer - dt);
     this.stats.sectorFlashTimer = this.sectorFlashTimer;
 
+    this.iceShieldTimer = Math.max(0, this.iceShieldTimer - dt);
+    this.player.iceShieldActive = this.iceShieldTimer > 0;
+    this.stats.iceShieldTimer = this.iceShieldTimer;
+
     // 9. Deep Space Freezing Check (with Cryo gear and skill resistances)
     const freezeResist = Math.min(0.85, (gearStats.freezeResistancePercent || 0) / 100 + skillBonuses.freezeResistance);
     const freezeRate = 1 - freezeResist;
 
-    if (!this.player.isAttached) {
+    if (this.iceShieldTimer > 0) {
+      this.freezeTimer = 0;
+      this.freezeRatio = 0;
+    } else if (!this.player.isAttached) {
       let minPlanetDist = Infinity;
       let closestPlanet: Planet | null = null;
       for (const p of this.planets) {
@@ -870,6 +999,13 @@ export class Engine {
         this.renderSystem.triggerScreenShake(20, 0.5);
         this.particleSystem.emitLandingSparkles(this.player.x, this.player.y, '#f59e0b');
         audioEngine.playPowerUpCollect();
+        return;
+      }
+
+      if (this.stats.equippedGadgetId === 'PHOENIX_CHARM' && (this.stats.gadgetChargesRemaining || 0) > 0) {
+        this.triggerGadget();
+        this.player.vy = -750;
+        this.player.vx = 0;
         return;
       }
 

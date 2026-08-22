@@ -41,7 +41,7 @@ import {
   MODULE_UPGRADE_PRICES,
 } from './ProgressionPack';
 
-export { MODULE_MAX_LEVEL, hasCraftedTool, homeUpgradeCostMultiplier, gardenGrowthMultiplier, gardenHarvestMultiplier } from './ProgressionPack';
+export { MODULE_MAX_LEVEL, hasCraftedTool, homeUpgradeCostMultiplier, gardenGrowthMultiplier, gardenHarvestMultiplier, COSMIC_GADGETS } from './ProgressionPack';
 
 // Legacy stub
 const _UNUSED_LEGACY: ConstellationData[] = [

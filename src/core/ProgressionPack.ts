@@ -1,6 +1,7 @@
 import type {
   Achievement,
   CheckpointInfo,
+  CosmicGadget,
   Costume,
   GearItem,
   HomeCraftedTool,
@@ -72,7 +73,23 @@ export const EXTRA_FURNITURE: HomeFurnitureItem[] = [
   { id: 'FURN_CRYSTAL_BOOKSHELF', name: 'Levitating Crystal Archive', category: 'FURNITURE', icon: '📚', color: '#67e8f9', costStarDust: 110, description: 'Floating amethyst shelves holding planetary lore tablets.' },
   { id: 'FURN_NEBULA_WINDMILL', name: 'Nebula Windmill', category: 'STRUCTURE', icon: '🌬️', color: '#f472b6', costStarDust: 170, description: 'Pastel-sailed mill that harvests solar wind into plasma cells.' },
   { id: 'FURN_SOLAR_SUNDIAL', name: 'Golden Solar Sundial', category: 'DECOR', icon: '☀️', color: '#fde047', costStarDust: 75, description: 'Brass sundial that always points toward the nearest sun planet.' },
-  { id: 'FURN_MOSAIC_BENCH', name: 'Constellation Mosaic Bench', category: 'FURNITURE', icon: '🪑', color: '#fb7185', costStarDust: 65, description: 'Inlaid star-map bench for watching the void from home.' }
+  { id: 'FURN_MOSAIC_BENCH', name: 'Constellation Mosaic Bench', category: 'FURNITURE', icon: '🪑', color: '#fb7185', costStarDust: 65, description: 'Inlaid star-map bench for watching the void from home.' },
+  { id: 'FURN_GRAVITY_HAMMOCK', name: 'Gravity Loom Hammock', category: 'FURNITURE', icon: '🪢', color: '#818cf8', costStarDust: 88, description: 'Woven graviton mesh that floats you a handspan above the lawn.' },
+  { id: 'FURN_RADIO_TELESCOPE', name: 'Deep-Array Radio Dish', category: 'STRUCTURE', icon: '📡', color: '#94a3b8', costStarDust: 155, description: 'Brass-and-cyan dish that listens for distant constellation songs.' },
+  { id: 'FURN_PLASMA_COFFEE', name: 'Plasma Espresso Cart', category: 'DECOR', icon: '☕', color: '#fb923c', costStarDust: 72, description: 'Steaming brass cart that brews solar-flare espresso at dawn.' },
+  { id: 'FURN_CONSTELLATION_RUG', name: 'Living Constellation Rug', category: 'DECOR', icon: '🧶', color: '#c084fc', costStarDust: 58, description: 'Floor tapestry whose stars rearrange into maps you have discovered.' },
+  { id: 'FURN_MOON_SCULPTURE', name: 'Moon-Phase Sculpture', category: 'DECOR', icon: '🌕', color: '#e2e8f0', costStarDust: 96, description: 'Carved lunar marble that slowly cycles through glowing phases.' },
+  { id: 'FURN_SOLAR_BENCH', name: 'Sun-Warm Solar Bench', category: 'FURNITURE', icon: '🌅', color: '#fbbf24', costStarDust: 78, description: 'Gold-leaf bench that stores coronal heat for chilly nights.' },
+  { id: 'FURN_CRYSTAL_RAINCHAIN', name: 'Crystal Rainchain', category: 'LIGHTING', icon: '💧', color: '#67e8f9', costStarDust: 84, description: 'Hanging prism beads that turn stardust rain into chimes of light.' },
+  { id: 'FURN_NEBULA_BIRDHOUSE', name: 'Nebula Birdhouse', category: 'NATURE', icon: '🪺', color: '#f472b6', costStarDust: 64, description: 'Pastel roost for migrating comet-finches and aurora swallows.' },
+  { id: 'FURN_ANTIMATTER_LAMP', name: 'Antimatter Desk Lamp', category: 'LIGHTING', icon: '💡', color: '#a78bfa', costStarDust: 110, description: 'Contained violet singularity that casts a calm reading glow.' },
+  { id: 'FURN_COMET_VANE', name: 'Comet Weather Vane', category: 'DECOR', icon: '☄️', color: '#fb7185', costStarDust: 70, description: 'Spinning brass vane that always points toward the next comet.' },
+  { id: 'FURN_STAR_MAILBOX', name: 'Starlight Mailbox', category: 'STRUCTURE', icon: '📫', color: '#38bdf8', costStarDust: 52, description: 'Cyan postbox that collects traveler letters and bonus star dust.' },
+  { id: 'FURN_KOI_POND', name: 'Cosmic Koi Pond', category: 'NATURE', icon: '🐟', color: '#22d3ee', costStarDust: 140, description: 'Still pool of liquid starlight with glowing koi that grant luck.' },
+  { id: 'FURN_VOID_GONG', name: 'Voidheart Gong', category: 'DECOR', icon: '🔔', color: '#7c3aed', costStarDust: 125, description: 'Obsidian gong whose strike pushes the darkness a little farther.' },
+  { id: 'FURN_AURORA_SAIL', name: 'Aurora Garden Sail', category: 'LIGHTING', icon: '🎏', color: '#34d399', costStarDust: 92, description: 'Ribbon sail that paints the sanctuary with living aurora sheets.' },
+  { id: 'FURN_METEOR_ANVIL', name: 'Meteor Forge Anvil', category: 'STRUCTURE', icon: '⚒️', color: '#f97316', costStarDust: 168, description: 'Iron-meteor anvil that sparks workshop tools to a higher craft.' },
+  { id: 'FURN_SEED_VAULT', name: 'Star-Seed Vault', category: 'NATURE', icon: '🌱', color: '#86efac', costStarDust: 150, description: 'Crystal cabinet that stores extra garden seeds between seasons.' }
 ];
 
 export const EXTRA_SKILL_NODES: SkillNode[] = [
@@ -371,6 +388,58 @@ export const EXTRA_COSTUMES: Costume[] = [
     trailColor: '#67e8f9',
     hairColor: '#e0f2fe',
     hatType: 'CRYO_HORNS'
+  },
+  {
+    id: 'LUNAR_MONK',
+    name: 'Lunar Monk Koji',
+    description: 'Barefoot moon-temple wanderer in cream robes, prayer beads, and a living crescent halo.',
+    priceDiamonds: 95,
+    unlocked: false,
+    icon: '🧘',
+    bodyColor: '#f8fafc',
+    accentColor: '#fde68a',
+    trailColor: '#fef08a',
+    hairColor: '#1c1917',
+    hatType: 'SOLAR_HALO'
+  },
+  {
+    id: 'STORM_PILOT',
+    name: 'Storm Pilot Juno',
+    description: 'Thunder-fleet ace in a brass-trimmed flight jacket, visor, and crackling cyan afterburners.',
+    priceDiamonds: 85,
+    unlocked: false,
+    icon: '🌩️',
+    bodyColor: '#1e3a8a',
+    accentColor: '#38bdf8',
+    trailColor: '#67e8f9',
+    hairColor: '#0f172a',
+    hatType: 'VISOR'
+  },
+  {
+    id: 'PHOENIX_HEIR',
+    name: 'Phoenix Heir Ember',
+    description: 'Reborn solar scion wrapped in living flame-feather armor with a gold rebirth crown.',
+    priceDiamonds: 140,
+    unlocked: false,
+    icon: '🔥',
+    bodyColor: '#ef4444',
+    accentColor: '#fbbf24',
+    trailColor: '#fb923c',
+    hairColor: '#7c2d12',
+    hatType: 'SOLAR_HALO'
+  },
+  {
+    id: 'QUANTUM_THIEF',
+    name: 'Quantum Thief Nyx',
+    description: 'Phase-shifting cat burglar in a hooded prism cloak that leaves after-images of starlight.',
+    priceDiamonds: 125,
+    unlocked: false,
+    icon: '🦊',
+    bodyColor: '#312e81',
+    accentColor: '#22d3ee',
+    trailColor: '#a78bfa',
+    hairColor: '#0f172a',
+    hatType: 'NINJA_MASK'
   }
 ];
 
@@ -414,6 +483,157 @@ export const EXTRA_ROCKETS: RocketSkin[] = [
     icon: '🦋',
     primaryColor: '#22d3ee',
     flameColor: '#f472b6'
+  },
+  {
+    id: 'ICE_LANCE',
+    name: 'Ice Lance Cryojet',
+    description: 'Needle-thin frost engine that vents diamond-blue cryo fire.',
+    priceStars: 1600,
+    unlocked: false,
+    icon: '❄️',
+    primaryColor: '#67e8f9',
+    flameColor: '#e0f2fe'
+  },
+  {
+    id: 'CLOCKWORK',
+    name: 'Clockwork Chrono Engine',
+    description: 'Brass orrery thruster ticking with amber temporal exhaust.',
+    priceStars: 1900,
+    unlocked: false,
+    icon: '⚙️',
+    primaryColor: '#b45309',
+    flameColor: '#fbbf24'
+  },
+  {
+    id: 'TITAN_FORGE',
+    name: 'Titan Forge Reactor',
+    description: 'Heavy meteor-steel booster shedding molten gold slag trails.',
+    priceStars: 2400,
+    unlocked: false,
+    icon: '🪨',
+    primaryColor: '#78716c',
+    flameColor: '#f97316'
+  },
+  {
+    id: 'NEBULA_DRIVE',
+    name: 'Nebula Drive Coil',
+    description: 'Pastel plasma ring engine that unfurls a violet-cyan nebula wake.',
+    priceStars: 2100,
+    unlocked: false,
+    icon: '🌌',
+    primaryColor: '#c084fc',
+    flameColor: '#22d3ee'
+  }
+];
+
+export const COSMIC_GADGETS: CosmicGadget[] = [
+  {
+    id: 'VOID_FLARE',
+    name: 'Void Flare Beacon',
+    description: 'Detonates a violet shockwave that slams the climbing darkness far below you.',
+    icon: '💥',
+    color: '#a855f7',
+    priceStars: 0,
+    priceDiamonds: 0,
+    chargesPerRun: 2,
+    effect: 'VOID_PUSH',
+    unlocked: true
+  },
+  {
+    id: 'STAR_BURST',
+    name: 'Star Burst Prism',
+    description: 'Shatters a captured star into a ring of collectible starlight around you.',
+    icon: '✨',
+    color: '#facc15',
+    priceStars: 420,
+    priceDiamonds: 8,
+    chargesPerRun: 3,
+    effect: 'STAR_BURST',
+    unlocked: false
+  },
+  {
+    id: 'ICE_SHELL',
+    name: 'Cryo Ice Shell',
+    description: 'Wraps Leo in a diamond-ice aegis that ignores freeze for several seconds.',
+    icon: '🧊',
+    color: '#67e8f9',
+    priceStars: 560,
+    priceDiamonds: 12,
+    chargesPerRun: 2,
+    effect: 'ICE_SHIELD',
+    unlocked: false
+  },
+  {
+    id: 'DIAMOND_PRISM',
+    name: 'Diamond Prism Cascade',
+    description: 'Splits a prism into a shower of space diamonds you can scoop mid-flight.',
+    icon: '💎',
+    color: '#38bdf8',
+    priceStars: 780,
+    priceDiamonds: 18,
+    chargesPerRun: 2,
+    effect: 'DIAMOND_RAIN',
+    unlocked: false
+  },
+  {
+    id: 'ORBITAL_BEACON',
+    name: 'Orbital Beacon',
+    description: 'Locks a blessing onto the nearest world and yanks you into a safe landing orbit.',
+    icon: '📡',
+    color: '#818cf8',
+    priceStars: 640,
+    priceDiamonds: 14,
+    chargesPerRun: 2,
+    effect: 'ORBIT_BLESS',
+    unlocked: false
+  },
+  {
+    id: 'MAGNET_CORE',
+    name: 'Magnet Core Pulse',
+    description: 'Overcharges your tractor field so nearby stars and diamonds rush into your hands.',
+    icon: '🧲',
+    color: '#22d3ee',
+    priceStars: 500,
+    priceDiamonds: 10,
+    chargesPerRun: 3,
+    effect: 'MAGNET_PULSE',
+    unlocked: false
+  },
+  {
+    id: 'SOLAR_CELL',
+    name: 'Solar Cell Overdrive',
+    description: 'Ignites a short comet burn and showers the run in bonus score.',
+    icon: '☀️',
+    color: '#f59e0b',
+    priceStars: 720,
+    priceDiamonds: 16,
+    chargesPerRun: 2,
+    effect: 'SOLAR_CELL',
+    unlocked: false
+  },
+  {
+    id: 'GRAVITY_HOOK',
+    name: 'Gravity Hook',
+    description: 'Fires a graviton tether that slings you toward the nearest planet above.',
+    icon: '🪝',
+    color: '#34d399',
+    priceStars: 680,
+    priceDiamonds: 14,
+    chargesPerRun: 3,
+    effect: 'GRAVITY_HOOK',
+    unlocked: false
+  },
+  {
+    id: 'PHOENIX_CHARM',
+    name: 'Phoenix Charm',
+    description: 'Stores a rebirth spark — blasting the void and restoring a jetpack charge.',
+    icon: '🐦',
+    color: '#fb7185',
+    priceStars: 1100,
+    priceDiamonds: 28,
+    chargesPerRun: 1,
+    effect: 'PHOENIX_CHARM',
+    unlocked: false
   }
 ];
 

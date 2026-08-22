@@ -1,8 +1,9 @@
 import React from 'react';
 import { Pause, Compass, Zap, Magnet, Award, MapPin, Sparkles, Clock, RotateCcw, Telescope, AlertTriangle } from 'lucide-react';
-import { PlayerStats, StageQuest } from '../types/game';
-import { COLLECTIBLE_SPRITES } from '../core/SpriteAtlas';
+import { PlayerStats, StageQuest, CosmicGadgetId } from '../types/game';
+import { COLLECTIBLE_SPRITES, GADGET_SPRITES, POWERUP_SPRITES } from '../core/SpriteAtlas';
 import { ItemSprite } from '../components/ItemSprite';
+import { COSMIC_GADGETS } from '../core/Config';
 
 interface HUDProps {
   stats: PlayerStats;
@@ -17,6 +18,7 @@ interface HUDProps {
   onPause: () => void;
   onTriggerJetpack?: () => void;
   onTriggerRewind?: () => void;
+  onTriggerGadget?: () => void;
   onOpenStarGazing?: () => void;
 }
 
@@ -33,6 +35,7 @@ export const HUD: React.FC<HUDProps> = ({
   onPause,
   onTriggerJetpack,
   onTriggerRewind,
+  onTriggerGadget,
   onOpenStarGazing,
 }) => {
   const constellationProgress = Math.min(100, Math.max(0, Math.round((stats.currentConstellationProgressRatio ?? 0) * 100)));
@@ -42,6 +45,8 @@ export const HUD: React.FC<HUDProps> = ({
   const voidDist = Math.max(0, Math.round(stats.voidDistancePx ?? 0));
   const voidColor = voidDanger > 0.72 ? '#f43f5e' : voidDanger > 0.45 ? '#f59e0b' : '#38bdf8';
   const sectorFlash = (stats.sectorFlashTimer ?? 0) > 0;
+  const equippedGadget = COSMIC_GADGETS.find((g) => g.id === (stats.equippedGadgetId as CosmicGadgetId | undefined));
+  const gadgetCharges = stats.gadgetChargesRemaining ?? 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-4 z-10 select-none">
@@ -392,6 +397,21 @@ export const HUD: React.FC<HUDProps> = ({
             </div>
           </div>
         )}
+
+        {(stats.iceShieldTimer ?? 0) > 0 && (
+          <div className="bg-slate-900/90 border border-cyan-400/60 rounded-lg p-2 w-full text-white text-xs shadow-lg flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
+              <ItemSprite src={GADGET_SPRITES.ICE_SHELL} className="w-4 h-4 object-contain" alt="Ice Shell" />
+              <span>Ice Shell</span>
+            </div>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-cyan-300 h-full transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, ((stats.iceShieldTimer || 0) / 8) * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Quest Tracker & Controls */}
@@ -455,8 +475,20 @@ export const HUD: React.FC<HUDProps> = ({
             className="pointer-events-auto bg-gradient-to-tr from-amber-500 to-orange-400 hover:from-amber-400 hover:to-orange-300 text-slate-950 px-3.5 py-2 rounded-full border-2 border-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.5)] transition-all duration-200 flex items-center gap-1.5 font-black text-xs ui-interactive shrink-0 btn-grow glow-amber-hover"
             title="Fire Jetpack Thrusters!"
           >
-            <span className="text-sm">🚀</span>
+            <ItemSprite src={POWERUP_SPRITES.JETPACK} className="w-5 h-5 object-contain" alt="Jetpack" />
             <span>Jetpack ({stats.jetpackChargesRemaining})</span>
+          </button>
+        )}
+
+        {equippedGadget && gadgetCharges > 0 && (
+          <button
+            onClick={onTriggerGadget}
+            className="pointer-events-auto bg-gradient-to-tr from-violet-500 to-fuchsia-400 hover:from-violet-400 hover:to-fuchsia-300 text-slate-950 px-3.5 py-2 rounded-full border-2 border-violet-200 shadow-[0_0_18px_rgba(167,139,250,0.55)] transition-all duration-200 flex items-center gap-1.5 font-black text-xs ui-interactive shrink-0 btn-grow"
+            title={`${equippedGadget.name} (HotKey: G)`}
+          >
+            <ItemSprite src={GADGET_SPRITES[equippedGadget.id]} className="w-5 h-5 object-contain" alt={equippedGadget.name} />
+            <span>{equippedGadget.name.split(' ')[0]} ({gadgetCharges})</span>
+            <span className="text-[9px] bg-slate-950/40 text-slate-950 px-1 rounded font-mono font-bold">G</span>
           </button>
         )}
 

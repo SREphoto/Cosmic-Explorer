@@ -1,4 +1,5 @@
 import { PowerUpData, PowerUpType } from '../types/game';
+import { drawCenteredSprite, spriteAtlas } from '../core/SpriteAtlas';
 
 export class PowerUp implements PowerUpData {
   id: string;
@@ -35,6 +36,24 @@ export class PowerUp implements PowerUpData {
     ctx.save();
     ctx.translate(renderX, renderY);
     ctx.scale(pulseScale, pulseScale);
+
+    const sprite = spriteAtlas.powerup(this.type);
+    if (sprite) {
+      const aura =
+        this.type === 'MAGNET'
+          ? 'rgba(56, 189, 248, 0.38)'
+          : this.type === 'REWIND'
+            ? 'rgba(251, 191, 36, 0.4)'
+            : 'rgba(245, 158, 11, 0.38)';
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 1.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.rotate(this.rotation * 0.35);
+      drawCenteredSprite(ctx, sprite, 0, 0, this.radius * 2.4);
+      ctx.restore();
+      return;
+    }
 
     if (this.type === 'MAGNET') {
       // Blue pulsing aura

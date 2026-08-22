@@ -240,9 +240,26 @@ export type CostumeId =
   | 'NEBULA_DANCER'
   | 'STAR_KNIGHT'
   | 'COMET_ACE'
-  | 'AURORA_SEER';
+  | 'AURORA_SEER'
+  | 'LUNAR_MONK'
+  | 'STORM_PILOT'
+  | 'PHOENIX_HEIR'
+  | 'QUANTUM_THIEF';
 
-export type RocketSkinId = 'APOLLO' | 'NEON_CYBER' | 'GOLDEN_FLARE' | 'DRAGON_FIRE' | 'ALIEN_ION' | 'VOID_DRAKE' | 'STARLIGHT_SAIL' | 'PHOENIX_CORE' | 'AURORA_WING';
+export type RocketSkinId =
+  | 'APOLLO'
+  | 'NEON_CYBER'
+  | 'GOLDEN_FLARE'
+  | 'DRAGON_FIRE'
+  | 'ALIEN_ION'
+  | 'VOID_DRAKE'
+  | 'STARLIGHT_SAIL'
+  | 'PHOENIX_CORE'
+  | 'AURORA_WING'
+  | 'ICE_LANCE'
+  | 'CLOCKWORK'
+  | 'TITAN_FORGE'
+  | 'NEBULA_DRIVE';
 
 export interface RocketSkin {
   id: RocketSkinId;
@@ -388,6 +405,41 @@ export interface GearItem {
   accessoryType?: 'SCARF' | 'CHRONO_CLOCK' | 'STAR_AMULET' | 'CAPE' | 'PRISMATIC_PENDANT';
 }
 
+export type CosmicGadgetId =
+  | 'VOID_FLARE'
+  | 'STAR_BURST'
+  | 'ICE_SHELL'
+  | 'DIAMOND_PRISM'
+  | 'ORBITAL_BEACON'
+  | 'MAGNET_CORE'
+  | 'SOLAR_CELL'
+  | 'GRAVITY_HOOK'
+  | 'PHOENIX_CHARM';
+
+export type CosmicGadgetEffect =
+  | 'VOID_PUSH'
+  | 'STAR_BURST'
+  | 'ICE_SHIELD'
+  | 'DIAMOND_RAIN'
+  | 'ORBIT_BLESS'
+  | 'MAGNET_PULSE'
+  | 'SOLAR_CELL'
+  | 'GRAVITY_HOOK'
+  | 'PHOENIX_CHARM';
+
+export interface CosmicGadget {
+  id: CosmicGadgetId;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  priceStars: number;
+  priceDiamonds: number;
+  chargesPerRun: number;
+  effect: CosmicGadgetEffect;
+  unlocked: boolean;
+}
+
 export interface EquippedGear {
   helmetId: string;
   suitId: string;
@@ -439,6 +491,9 @@ export interface PlayerStats {
   maxRewindCharges: number;
   isRewinding?: boolean;
   rewindEffectTimer?: number;
+  gadgetChargesRemaining?: number;
+  equippedGadgetId?: CosmicGadgetId | null;
+  iceShieldTimer?: number;
   fullOrbitsCompleted: number;
   ricochetsExecuted: number;
   deathReason?: 'VOID' | 'FROZEN' | 'PETRIFIED';
@@ -745,6 +800,8 @@ export interface UserSavedData {
   activeCostumeId: CostumeId;
   unlockedRocketSkins: RocketSkinId[];
   activeRocketSkinId: RocketSkinId;
+  unlockedGadgetIds?: CosmicGadgetId[];
+  equippedGadgetId?: CosmicGadgetId | null;
   upgrades: PowerUpUpgrades;
   claimedAchievementIds: string[];
   unlockedCheckpointIds: string[];

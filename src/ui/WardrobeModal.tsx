@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Gem, Check, Lock, Star, Rocket, User, Sparkles } from 'lucide-react';
 import { Costume, CostumeId, RocketSkin, RocketSkinId, UserSavedData } from '../types/game';
 import { INITIAL_COSTUMES, INITIAL_ROCKET_SKINS } from '../core/Config';
+import { COSTUME_SPRITES, ROCKET_SPRITES } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 import { StorageManager } from '../core/Storage';
 import { Player } from '../entities/Player';
 import cosmicHangarBannerImg from '../assets/images/cosmic_hangar_banner_1786696559208.jpg';
@@ -350,10 +352,14 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({
                     >
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-white/20 shadow-inner relative shrink-0"
-                          style={{ backgroundColor: costume.bodyColor }}
+                          className="w-12 h-12 rounded-xl flex items-center justify-center border border-white/20 shadow-inner relative shrink-0 overflow-hidden bg-slate-950"
                         >
-                          {costume.icon}
+                          <ItemSprite
+                            src={COSTUME_SPRITES[costume.id]}
+                            fallback={costume.icon}
+                            className="w-11 h-11 object-contain"
+                            alt={costume.name}
+                          />
                           <div
                             className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border border-slate-900"
                             style={{ backgroundColor: costume.trailColor }}
@@ -432,10 +438,14 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({
                     >
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-white/20 shadow-inner relative shrink-0"
-                          style={{ backgroundColor: rocket.primaryColor }}
+                          className="w-12 h-12 rounded-xl flex items-center justify-center border border-white/20 shadow-inner relative shrink-0 overflow-hidden bg-slate-950"
                         >
-                          {rocket.icon}
+                          <ItemSprite
+                            src={ROCKET_SPRITES[rocket.id]}
+                            fallback={rocket.icon}
+                            className="w-11 h-11 object-contain"
+                            alt={rocket.name}
+                          />
                           <div
                             className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border border-slate-900 flex items-center justify-center text-[7px]"
                             style={{ backgroundColor: rocket.flameColor }}

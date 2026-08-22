@@ -5,13 +5,11 @@ import {
   Zap,
   Sparkles,
   ArrowUp,
-  Rocket,
   Footprints,
   ShieldCheck,
   Shield,
   Award,
   Flame,
-  Magnet,
   Compass,
   Cpu,
   Layers,
@@ -19,12 +17,11 @@ import {
   CheckCircle2,
   Lock,
   RotateCcw,
-  Clock,
   Gift,
   ChevronRight,
   Filter
 } from 'lucide-react';
-import { UserSavedData, SkillTreeAllocations, SkillId, GearSlot, GearItem } from '../types/game';
+import { UserSavedData, SkillTreeAllocations, SkillId, GearSlot, GearItem, CosmicGadgetId } from '../types/game';
 import {
   UPGRADE_PRICES,
   SKILL_TREES,
@@ -35,10 +32,13 @@ import {
   calculateTotalGearStats,
   calculateSkillBonuses,
   getActiveSetBonus,
-  MODULE_MAX_LEVEL
+  MODULE_MAX_LEVEL,
+  COSMIC_GADGETS
 } from '../core/Config';
 import { StorageManager, DEFAULT_SKILL_ALLOCATIONS } from '../core/Storage';
 import { audioEngine } from '../core/AudioEngine';
+import { GADGET_SPRITES, GEAR_SPRITES, POWERUP_SPRITES } from '../core/SpriteAtlas';
+import { ItemSprite } from '../components/ItemSprite';
 import workshopHeroImg from '../assets/images/cosmic_hangar_banner_1786696559208.jpg';
 import cardBgImg from '../assets/images/galaxy_cosmic_bg_1786680029303.jpg';
 
@@ -48,7 +48,7 @@ interface UpgradesModalProps {
   onUpdateData: (newData: UserSavedData) => void;
 }
 
-type ModalTab = 'SKILLS' | 'GEAR' | 'PERKS' | 'MODULES';
+type ModalTab = 'SKILLS' | 'GEAR' | 'PERKS' | 'MODULES' | 'GADGETS';
 
 interface UpgradeDetail {
   id: 'MAGNET' | 'COMET' | 'MULTIPLIER' | 'JETPACK' | 'RICOCHET' | 'REWIND';
@@ -67,7 +67,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     title: 'Chrono Time-Warp',
     subtitle: 'Temporal Rewind',
     description: 'Rewinds celestial physics and time on hazard collision or manual trigger, restoring safe orbit.',
-    icon: <Clock className="w-5 h-5 text-amber-400" />,
+    icon: <ItemSprite src={POWERUP_SPRITES.REWIND} className="w-6 h-6 object-contain" alt="Chrono" />,
     themeColor: '#fbbf24',
     statLabel: 'Rewind Charges',
     statValues: [
@@ -88,7 +88,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     title: 'Cosmic Magnet Core',
     subtitle: 'Gravitational Tractor',
     description: 'Generates an electromagnetic tractor field drawing nearby stars, diamonds, and power-up orbs.',
-    icon: <Magnet className="w-5 h-5 text-sky-400" />,
+    icon: <ItemSprite src={POWERUP_SPRITES.MAGNET} className="w-6 h-6 object-contain" alt="Magnet" />,
     themeColor: '#38bdf8',
     statLabel: 'Tractor Pull Radius',
     statValues: ['160px (Base)', '200px (+25%)', '240px (+50%)', '280px (+75%)', '320px (Hyper-Pull)', '360px', '400px', '450px', '510px', '580px (Event Horizon)']
@@ -98,7 +98,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     title: 'Hyper Comet Drive',
     subtitle: 'Starlight Warp Boost',
     description: 'Blasts through deep space with blazing velocity, granting invulnerability and knocking void back.',
-    icon: <Zap className="w-5 h-5 text-amber-400" />,
+    icon: <ItemSprite src={POWERUP_SPRITES.COMET} className="w-6 h-6 object-contain" alt="Comet" />,
     themeColor: '#f59e0b',
     statLabel: 'Comet Duration',
     statValues: ['4.5s · 450px Push', '5.7s · 600px Push', '6.9s · 750px Push', '8.1s · 900px Push', '9.5s · Supernova Push', '10.7s', '12.0s', '13.4s', '15.0s', '17s · Quasar Drive']
@@ -108,7 +108,7 @@ const UPGRADE_DETAILS: UpgradeDetail[] = [
     title: 'Emergency Jetpack',
     subtitle: 'Abyss Thruster Rescue',
     description: 'Fires an automated emergency vertical thruster when descending dangerously close to the void.',
-    icon: <Rocket className="w-5 h-5 text-rose-400" />,
+    icon: <ItemSprite src={POWERUP_SPRITES.JETPACK} className="w-6 h-6 object-contain" alt="Jetpack" />,
     themeColor: '#f43f5e',
     statLabel: 'Rescue Charges',
     statValues: ['1 Rescue Save', '2 Rescue Saves', '3 Rescue Saves', '4 Rescue Saves', '5 Rescue Saves', '6 Saves', '7 Saves', '8 Saves', '9 Saves', '10 Saves (Max)']
@@ -224,6 +224,30 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
     const newSaved = StorageManager.saveData({
       skillPointsAvailable: (savedData.skillPointsAvailable || 0) + totalInvested,
       skillTreeAllocations: resetAllocations
+    });
+    onUpdateData(newSaved);
+  };
+
+  const handleUnlockGadget = (gadgetId: CosmicGadgetId, priceStars: number, priceDiamonds: number) => {
+    const unlocked = savedData.unlockedGadgetIds || ['VOID_FLARE'];
+    if (unlocked.includes(gadgetId)) return;
+    if (savedData.totalStars < priceStars || savedData.totalDiamonds < priceDiamonds) return;
+    audioEngine.playPowerUpCollect();
+    const newSaved = StorageManager.saveData({
+      totalStars: savedData.totalStars - priceStars,
+      totalDiamonds: savedData.totalDiamonds - priceDiamonds,
+      unlockedGadgetIds: [...unlocked, gadgetId],
+      equippedGadgetId: gadgetId
+    });
+    onUpdateData(newSaved);
+  };
+
+  const handleEquipGadget = (gadgetId: CosmicGadgetId) => {
+    const unlocked = savedData.unlockedGadgetIds || ['VOID_FLARE'];
+    if (!unlocked.includes(gadgetId)) return;
+    audioEngine.playClick();
+    const newSaved = StorageManager.saveData({
+      equippedGadgetId: gadgetId
     });
     onUpdateData(newSaved);
   };
@@ -388,6 +412,18 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
           </button>
 
           <button
+            onClick={() => setActiveTab('GADGETS')}
+            className={`flex-1 min-w-[120px] py-2 px-2.5 text-xs font-bold rounded-t-xl transition-all duration-200 flex items-center justify-center gap-1.5 border-b-2 btn-grow-sm ${
+              activeTab === 'GADGETS'
+                ? 'bg-slate-800/90 text-violet-300 border-violet-400 shadow'
+                : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-850/40'
+            }`}
+          >
+            <Sparkle className="w-3.5 h-3.5" />
+            <span>Gadgets</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('PERKS')}
             className={`flex-1 min-w-[120px] py-2 px-2.5 text-xs font-bold rounded-t-xl transition-all duration-200 flex items-center justify-center gap-1.5 border-b-2 btn-grow-sm ${
               activeTab === 'PERKS'
@@ -534,8 +570,13 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
                       className="absolute inset-0 w-full h-full object-cover opacity-[0.15] mix-blend-screen pointer-events-none" 
                     />
                     <div className="relative flex items-start gap-2.5 z-10">
-                      <div className="w-10 h-10 rounded-xl bg-slate-950/80 backdrop-blur border border-slate-800 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                        {gear.icon}
+                      <div className="w-10 h-10 rounded-xl bg-slate-950/80 backdrop-blur border border-slate-800 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                        <ItemSprite
+                          src={GEAR_SPRITES[gear.id]}
+                          fallback={gear.icon}
+                          className="w-9 h-9 object-contain"
+                          alt={gear.name}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
@@ -880,7 +921,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
                             : 'bg-slate-950 text-sky-300 border-slate-800'
                         }`}
                       >
-                        {isMaxed ? 'MAX' : `LVL ${currentLevel}/5`}
+                        {isMaxed ? 'MAX' : `LVL ${currentLevel}/${MODULE_MAX_LEVEL}`}
                       </div>
                     </div>
 
@@ -896,9 +937,9 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
                         </span>
                       </div>
 
-                      {/* 5-Pip Smooth Segment Indicator */}
-                      <div className="flex items-center gap-1.5">
-                        {[1, 2, 3, 4, 5].map((lvl) => {
+                      {/* 10-Pip Smooth Segment Indicator */}
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: MODULE_MAX_LEVEL }, (_, i) => i + 1).map((lvl) => {
                           const isActive = lvl <= currentLevel;
                           return (
                             <div
@@ -951,6 +992,98 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ savedData, onClose
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold flex items-center gap-1 shrink-0">
                           <Sparkles className="w-3 h-3" /> Mastered
                         </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'GADGETS' && (
+          <div className="flex-1 overflow-y-auto pr-1">
+            <p className="text-[11px] text-slate-400 mb-3">
+              Buy a gadget, equip it, then tap <span className="text-violet-300 font-bold">G</span> mid-run to spend a charge.
+              Charges refill at the start of every voyage.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {COSMIC_GADGETS.map((gadget) => {
+                const unlocked = (savedData.unlockedGadgetIds || ['VOID_FLARE']).includes(gadget.id);
+                const equipped = (savedData.equippedGadgetId || 'VOID_FLARE') === gadget.id;
+                const canAfford =
+                  savedData.totalStars >= gadget.priceStars && savedData.totalDiamonds >= gadget.priceDiamonds;
+                return (
+                  <div
+                    key={gadget.id}
+                    className={`relative rounded-2xl border p-4 flex flex-col gap-3 overflow-hidden ${
+                      equipped
+                        ? 'bg-violet-950/30 border-violet-400/70 shadow-md'
+                        : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0 overflow-hidden">
+                          <ItemSprite
+                            src={GADGET_SPRITES[gadget.id]}
+                            fallback={gadget.icon}
+                            className="w-11 h-11 object-contain"
+                            alt={gadget.name}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-slate-100 truncate">{gadget.name}</h3>
+                          <span className="text-[11px] text-slate-400">
+                            {gadget.chargesPerRun} charge{gadget.chargesPerRun === 1 ? '' : 's'} / run
+                          </span>
+                        </div>
+                      </div>
+                      {equipped && (
+                        <span className="text-[9px] bg-violet-500/20 text-violet-200 border border-violet-400/40 px-1.5 py-0.5 rounded-full uppercase font-bold">
+                          Equipped
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-300/90 leading-relaxed">{gadget.description}</p>
+                    <div className="pt-2 border-t border-slate-800/70 flex items-center justify-end">
+                      {unlocked ? (
+                        equipped ? (
+                          <span className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Ready
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleEquipGadget(gadget.id)}
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs"
+                          >
+                            Equip
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => handleUnlockGadget(gadget.id, gadget.priceStars, gadget.priceDiamonds)}
+                          disabled={!canAfford}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 ${
+                            canAfford
+                              ? 'bg-violet-400 hover:bg-violet-300 text-slate-950'
+                              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                          }`}
+                        >
+                          <span>Buy</span>
+                          {gadget.priceStars > 0 && (
+                            <span className="flex items-center gap-0.5 font-mono">
+                              {gadget.priceStars}
+                              <Star className="w-3 h-3 fill-current" />
+                            </span>
+                          )}
+                          {gadget.priceDiamonds > 0 && (
+                            <span className="flex items-center gap-0.5 font-mono">
+                              {gadget.priceDiamonds}
+                              <Sparkles className="w-3 h-3" />
+                            </span>
+                          )}
+                        </button>
                       )}
                     </div>
                   </div>

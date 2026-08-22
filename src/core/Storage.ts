@@ -56,6 +56,8 @@ export const DEFAULT_SAVE_DATA: UserSavedData = {
   activeCostumeId: 'ASTRONAUT',
   unlockedRocketSkins: ['APOLLO'],
   activeRocketSkinId: 'APOLLO',
+  unlockedGadgetIds: ['VOID_FLARE'],
+  equippedGadgetId: 'VOID_FLARE',
   upgrades: {
     magnetLevel: 1,
     cometLevel: 1,
@@ -172,6 +174,7 @@ export class StorageManager {
       // Union of unlocks
       unlockedCostumes: unionArray(local.unlockedCostumes, cloudData.unlockedCostumes),
       unlockedRocketSkins: unionArray(local.unlockedRocketSkins, cloudData.unlockedRocketSkins),
+      unlockedGadgetIds: unionArray(local.unlockedGadgetIds, cloudData.unlockedGadgetIds),
       unlockedGearIds: unionArray(local.unlockedGearIds, cloudData.unlockedGearIds),
       unlockedCheckpointIds: unionArray(local.unlockedCheckpointIds, cloudData.unlockedCheckpointIds),
       unlockedMedalIds: unionArray(local.unlockedMedalIds, cloudData.unlockedMedalIds),
@@ -193,6 +196,7 @@ export class StorageManager {
       // Preferences: cloud overrides if present, otherwise local
       activeCostumeId: cloudData.activeCostumeId || local.activeCostumeId || 'ASTRONAUT',
       activeRocketSkinId: cloudData.activeRocketSkinId || local.activeRocketSkinId || 'APOLLO',
+      equippedGadgetId: cloudData.equippedGadgetId || local.equippedGadgetId || 'VOID_FLARE',
       equippedGear: cloudData.equippedGear || local.equippedGear || DEFAULT_EQUIPPED_GEAR,
       skillTreeAllocations: {
         ...DEFAULT_SKILL_ALLOCATIONS,

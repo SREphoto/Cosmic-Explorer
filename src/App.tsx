@@ -133,6 +133,11 @@ export default function App() {
           engineRef.current.triggerRewind();
         }
       }
+      if (e.key === 'g' || e.key === 'G') {
+        if (engineRef.current && engineRef.current.state === 'PLAYING') {
+          engineRef.current.triggerGadget();
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
 
@@ -514,6 +519,7 @@ export default function App() {
               onPause={handlePauseGame}
               onTriggerJetpack={() => engineRef.current?.triggerJetpackRescue()}
               onTriggerRewind={() => engineRef.current?.triggerRewind()}
+              onTriggerGadget={() => engineRef.current?.triggerGadget()}
               onOpenStarGazing={handleOpenStarGazing}
             />
 

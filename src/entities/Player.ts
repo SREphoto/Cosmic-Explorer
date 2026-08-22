@@ -1,5 +1,6 @@
 import { Costume, CostumeId, RocketSkin, RocketSkinId, TrailPoint, Vector2D } from '../types/game';
 import { INITIAL_COSTUMES, INITIAL_ROCKET_SKINS, PHYSICS_CONFIG } from '../core/Config';
+import { drawCenteredSprite, spriteAtlas } from '../core/SpriteAtlas';
 import { Planet } from './Planet';
 
 interface ClothNode {
@@ -57,6 +58,8 @@ export class Player {
   public constellationColor: string = '#38bdf8';
   public currentAltitude: number = 0;
   public cometTailIntensity: number = 0; // 0.0 to 1.0 dynamic comet tail strength
+  public iceShieldActive: boolean = false;
+  public gadgetFlashTimer: number = 0;
 
   constructor(costumeId: CostumeId = 'ASTRONAUT', rocketSkinId: RocketSkinId = 'APOLLO') {
     this.activeCostume = INITIAL_COSTUMES.find((c) => c.id === costumeId) || INITIAL_COSTUMES[0];
@@ -215,6 +218,7 @@ export class Player {
   }
 
   public update(dt: number) {
+    this.gadgetFlashTimer = Math.max(0, this.gadgetFlashTimer - dt * 2.2);
     // 1. Smooth Spring Elastic Squash/Stretch Recovery
     this.landSquash += (1.0 - this.landSquash) * (9.5 * dt);
     this.landStretch += (1.0 - this.landStretch) * (9.5 * dt);
@@ -464,23 +468,49 @@ export class Player {
       this.drawPlasmaReentryShield(ctx, flightSpeed);
     }
 
-    // 1. Mounted Rocket Thruster Backpack
-    this.drawRocketBackpack(ctx);
+    if (this.iceShieldActive) {
+      this.drawIceShieldAura(ctx);
+    }
 
-    // 2. Cloth Simulation / Equipped Accessories (Scarves, Capes, Chrono Watches)
-    this.drawAccessory(ctx);
+    const pose = this.isAttached ? 'idle' : 'flight';
+    const costumeImg = spriteAtlas.costume(this.activeCostume.id, pose) || spriteAtlas.costume(this.activeCostume.id, 'idle');
 
-    // 3. Legs, Boots & Articulated Kinematics
-    this.drawLegsAndBoots(ctx);
+    if (costumeImg) {
+      this.drawSpriteRocket(ctx);
+      const bob = this.isAttached ? Math.sin(this.runCycle * 2) * 1.2 : 0;
+      const size = this.isAttached ? 48 : 52;
+      drawCenteredSprite(ctx, costumeImg, 0, bob - 8, size);
+    } else {
+      // 1. Mounted Rocket Thruster Backpack
+      this.drawRocketBackpack(ctx);
 
-    // 4. Torso, Flight Jacket / Royal Doublet & Pilot Arms
-    this.drawTorso(ctx);
+      // 2. Cloth Simulation / Equipped Accessories (Scarves, Capes, Chrono Watches)
+      this.drawAccessory(ctx);
 
-    // 5. Boy Head, Animated Blinking Eyes & Warm Smile
-    this.drawHeadAndFace(ctx);
+      // 3. Legs, Boots & Articulated Kinematics
+      this.drawLegsAndBoots(ctx);
 
-    // 6. Hat, Goggles, Helmets, Halos & Crowns
-    this.drawHat(ctx);
+      // 4. Torso, Flight Jacket / Royal Doublet & Pilot Arms
+      this.drawTorso(ctx);
+
+      // 5. Boy Head, Animated Blinking Eyes & Warm Smile
+      this.drawHeadAndFace(ctx);
+
+      // 6. Hat, Goggles, Helmets, Halos & Crowns
+      this.drawHat(ctx);
+    }
+
+    if (this.gadgetFlashTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.55, this.gadgetFlashTimer);
+      ctx.fillStyle = this.activeCostume.accentColor || '#67e8f9';
+      ctx.shadowColor = this.activeCostume.accentColor || '#67e8f9';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // 7. Stone Petrification Overlay
     if (this.petrificationRatio > 0 || this.isPetrified) {
@@ -493,6 +523,43 @@ export class Player {
     }
 
     ctx.restore();
+  }
+
+  private drawIceShieldAura(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(165, 243, 252, 0.95)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#67e8f9';
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius + 18, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(224, 242, 254, 0.5)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius + 24, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawSpriteRocket(ctx: CanvasRenderingContext2D) {
+    // Painted costumes already include a backpack. Only add thruster flames
+    // so the equipped rocket skin still reads during flight.
+    if (!this.isAttached || this.isCharging) {
+      const skin = this.activeRocketSkin;
+      const flameHeight = !this.isAttached ? 16 + Math.random() * 8 : 6 + this.chargeRatio * 12;
+      const flameGrad = ctx.createLinearGradient(0, 18, 0, 18 + flameHeight);
+      flameGrad.addColorStop(0, '#ffffff');
+      flameGrad.addColorStop(0.3, skin.flameColor);
+      flameGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+      ctx.fillStyle = flameGrad;
+      ctx.beginPath();
+      ctx.moveTo(-6, 18);
+      ctx.lineTo(0, 18 + flameHeight);
+      ctx.lineTo(6, 18);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   private drawStonePetrification(ctx: CanvasRenderingContext2D, ratio: number) {

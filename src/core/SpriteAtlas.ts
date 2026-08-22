@@ -1,6 +1,6 @@
-import type { PlanetType } from '../types/game';
+import type { CosmicGadgetId, CostumeId, PlanetType, PowerUpType, RocketSkinId } from '../types/game';
 
-const REV = 'v4';
+const REV = 'v6';
 
 export const PLANET_SPRITES: Record<PlanetType, string> = {
   GRASS: `/sprites/planets/grass.png?${REV}`,
@@ -38,6 +38,97 @@ export const BIOME_SPRITES: Record<string, string> = {
   GLACIAL: `/sprites/planets/ice.png?${REV}`,
 };
 
+export const COSTUME_SPRITES: Record<CostumeId, string> = {
+  ASTRONAUT: `/sprites/characters/astronaut.png?${REV}`,
+  PIRATE: `/sprites/characters/pirate.png?${REV}`,
+  PRINCESS: `/sprites/characters/princess.png?${REV}`,
+  FOOTBALLER: `/sprites/characters/footballer.png?${REV}`,
+  NINJA: `/sprites/characters/ninja.png?${REV}`,
+  ALIEN: `/sprites/characters/alien.png?${REV}`,
+  CYBER: `/sprites/characters/cyber.png?${REV}`,
+  SOLAR_SOVEREIGN: `/sprites/characters/solar_sovereign.png?${REV}`,
+  STELLA_MAGE: `/sprites/characters/stella_mage.png?${REV}`,
+  CRYO_ARCHON: `/sprites/characters/cryo_archon.png?${REV}`,
+  VOID_RANGER: `/sprites/characters/void_ranger.png?${REV}`,
+  NEBULA_DANCER: `/sprites/characters/nebula_dancer.png?${REV}`,
+  STAR_KNIGHT: `/sprites/characters/star_knight.png?${REV}`,
+  COMET_ACE: `/sprites/characters/comet_ace.png?${REV}`,
+  AURORA_SEER: `/sprites/characters/aurora_seer.png?${REV}`,
+  LUNAR_MONK: `/sprites/characters/lunar_monk.png?${REV}`,
+  STORM_PILOT: `/sprites/characters/storm_pilot.png?${REV}`,
+  PHOENIX_HEIR: `/sprites/characters/phoenix_heir.png?${REV}`,
+  QUANTUM_THIEF: `/sprites/characters/quantum_thief.png?${REV}`,
+};
+
+export const COSTUME_FLIGHT_SPRITES: Partial<Record<CostumeId, string>> = {
+  ASTRONAUT: `/sprites/characters/astronaut_flight.png?${REV}`,
+};
+
+export const ROCKET_SPRITES: Record<RocketSkinId, string> = {
+  APOLLO: `/sprites/rockets/apollo.png?${REV}`,
+  NEON_CYBER: `/sprites/rockets/neon_cyber.png?${REV}`,
+  GOLDEN_FLARE: `/sprites/rockets/golden_flare.png?${REV}`,
+  DRAGON_FIRE: `/sprites/rockets/dragon_fire.png?${REV}`,
+  ALIEN_ION: `/sprites/rockets/alien_ion.png?${REV}`,
+  VOID_DRAKE: `/sprites/rockets/void_drake.png?${REV}`,
+  STARLIGHT_SAIL: `/sprites/rockets/starlight_sail.png?${REV}`,
+  PHOENIX_CORE: `/sprites/rockets/phoenix_core.png?${REV}`,
+  AURORA_WING: `/sprites/rockets/aurora_wing.png?${REV}`,
+  ICE_LANCE: `/sprites/rockets/ice_lance.png?${REV}`,
+  CLOCKWORK: `/sprites/rockets/clockwork.png?${REV}`,
+  TITAN_FORGE: `/sprites/rockets/titan_forge.png?${REV}`,
+  NEBULA_DRIVE: `/sprites/rockets/nebula_drive.png?${REV}`,
+};
+
+export const GEAR_SPRITES: Record<string, string> = {
+  HELMET_DEFAULT: `/sprites/gear/helmet_default.png?${REV}`,
+  HELMET_CHRONO: `/sprites/gear/helmet_chrono.png?${REV}`,
+  HELMET_FROST: `/sprites/gear/helmet_frost.png?${REV}`,
+  HELMET_ASTRAL: `/sprites/gear/helmet_astral.png?${REV}`,
+  HELMET_VOID: `/sprites/gear/helmet_frost.png?${REV}`,
+  HELMET_AURORA: `/sprites/gear/helmet_astral.png?${REV}`,
+  SUIT_DEFAULT: `/sprites/gear/suit_default.png?${REV}`,
+  SUIT_NANOTECH: `/sprites/gear/suit_nanotech.png?${REV}`,
+  SUIT_VULCAN: `/sprites/gear/suit_vulcan.png?${REV}`,
+  SUIT_CELESTIAL: `/sprites/gear/suit_celestial.png?${REV}`,
+  SUIT_HARVEST: `/sprites/gear/suit_celestial.png?${REV}`,
+  SUIT_VOIDWALK: `/sprites/gear/suit_nanotech.png?${REV}`,
+  THRUSTER_DEFAULT: `/sprites/gear/thruster_default.png?${REV}`,
+  THRUSTER_CYBER: `/sprites/gear/thruster_default.png?${REV}`,
+  THRUSTER_DARK_MATTER: `/sprites/gear/thruster_dark.png?${REV}`,
+  THRUSTER_PRISMATIC: `/sprites/gear/thruster_dark.png?${REV}`,
+  THRUSTER_AURORA: `/sprites/gear/thruster_dark.png?${REV}`,
+  RELIC_DEFAULT: `/sprites/gear/relic_default.png?${REV}`,
+  RELIC_CHRONOS: `/sprites/gear/relic_chronos.png?${REV}`,
+  RELIC_ASTRAEA: `/sprites/gear/relic_chronos.png?${REV}`,
+  GEAR_SCARF_RED: `/sprites/gear/scarf_red.png?${REV}`,
+  GEAR_CHRONO_CLOCK: `/sprites/gear/chrono_clock.png?${REV}`,
+  GEAR_CHRONO_ASTROLABE: `/sprites/gear/chrono_clock.png?${REV}`,
+  GEAR_STAR_AMULET: `/sprites/gear/star_amulet.png?${REV}`,
+  GEAR_STAR_AMULET_PLUS: `/sprites/gear/star_amulet.png?${REV}`,
+  GEAR_PRISMATIC_CAPE: `/sprites/gear/prismatic_cape.png?${REV}`,
+  GEAR_VOID_CLOAK: `/sprites/gear/prismatic_cape.png?${REV}`,
+};
+
+export const POWERUP_SPRITES: Record<PowerUpType | 'JETPACK', string> = {
+  MAGNET: `/sprites/powerups/magnet.png?${REV}`,
+  COMET: `/sprites/powerups/comet.png?${REV}`,
+  REWIND: `/sprites/powerups/rewind.png?${REV}`,
+  JETPACK: `/sprites/powerups/jetpack.png?${REV}`,
+};
+
+export const GADGET_SPRITES: Record<CosmicGadgetId, string> = {
+  VOID_FLARE: `/sprites/gadgets/void_flare.png?${REV}`,
+  STAR_BURST: `/sprites/gadgets/star_burst.png?${REV}`,
+  ICE_SHELL: `/sprites/gadgets/ice_shell.png?${REV}`,
+  DIAMOND_PRISM: `/sprites/gadgets/diamond_prism.png?${REV}`,
+  ORBITAL_BEACON: `/sprites/gadgets/orbital_beacon.png?${REV}`,
+  MAGNET_CORE: `/sprites/gadgets/magnet_core.png?${REV}`,
+  SOLAR_CELL: `/sprites/gadgets/solar_cell.png?${REV}`,
+  GRAVITY_HOOK: `/sprites/gadgets/gravity_hook.png?${REV}`,
+  PHOENIX_CHARM: `/sprites/gadgets/phoenix_charm.png?${REV}`,
+};
+
 export const FURNITURE_SPRITES: Record<string, string> = {
   FURN_FIREPIT: `/sprites/furniture/firepit.png?${REV}`,
   FURN_TELESCOPE: `/sprites/furniture/telescope.png?${REV}`,
@@ -71,6 +162,22 @@ export const FURNITURE_SPRITES: Record<string, string> = {
   FURN_NEBULA_WINDMILL: `/sprites/furniture/nebula_windmill.png?${REV}`,
   FURN_SOLAR_SUNDIAL: `/sprites/furniture/solar_sundial.png?${REV}`,
   FURN_MOSAIC_BENCH: `/sprites/furniture/mosaic_bench.png?${REV}`,
+  FURN_GRAVITY_HAMMOCK: `/sprites/furniture/gravity_hammock.png?${REV}`,
+  FURN_RADIO_TELESCOPE: `/sprites/furniture/radio_telescope.png?${REV}`,
+  FURN_PLASMA_COFFEE: `/sprites/furniture/plasma_coffee.png?${REV}`,
+  FURN_CONSTELLATION_RUG: `/sprites/furniture/constellation_rug.png?${REV}`,
+  FURN_MOON_SCULPTURE: `/sprites/furniture/moon_sculpture.png?${REV}`,
+  FURN_SOLAR_BENCH: `/sprites/furniture/solar_bench.png?${REV}`,
+  FURN_CRYSTAL_RAINCHAIN: `/sprites/furniture/crystal_rainchain.png?${REV}`,
+  FURN_NEBULA_BIRDHOUSE: `/sprites/furniture/nebula_birdhouse.png?${REV}`,
+  FURN_ANTIMATTER_LAMP: `/sprites/furniture/antimatter_lamp.png?${REV}`,
+  FURN_COMET_VANE: `/sprites/furniture/comet_vane.png?${REV}`,
+  FURN_STAR_MAILBOX: `/sprites/furniture/star_mailbox.png?${REV}`,
+  FURN_KOI_POND: `/sprites/furniture/koi_pond.png?${REV}`,
+  FURN_VOID_GONG: `/sprites/furniture/void_gong.png?${REV}`,
+  FURN_AURORA_SAIL: `/sprites/furniture/aurora_sail.png?${REV}`,
+  FURN_METEOR_ANVIL: `/sprites/furniture/meteor_anvil.png?${REV}`,
+  FURN_SEED_VAULT: `/sprites/furniture/seed_vault.png?${REV}`,
 };
 
 export const HABITAT_SPRITES: Record<number, string> = {
@@ -126,6 +233,12 @@ export const COLLECTIBLE_SPRITES = {
 const ALL_SRCS: string[] = [
   ...Object.values(PLANET_SPRITES),
   ...Object.values(BIOME_SPRITES),
+  ...Object.values(COSTUME_SPRITES),
+  ...Object.values(COSTUME_FLIGHT_SPRITES),
+  ...Object.values(ROCKET_SPRITES),
+  ...Object.values(GEAR_SPRITES),
+  ...Object.values(POWERUP_SPRITES),
+  ...Object.values(GADGET_SPRITES),
   ...Object.values(FURNITURE_SPRITES),
   ...Object.values(HABITAT_SPRITES),
   STORAGE_SPRITE,
@@ -157,6 +270,30 @@ class SpriteAtlas {
 
   biome(id: string): HTMLImageElement | null {
     return this.get(BIOME_SPRITES[id]);
+  }
+
+  costume(id: CostumeId, pose: 'idle' | 'flight' = 'idle'): HTMLImageElement | null {
+    if (pose === 'flight') {
+      const flight = this.get(COSTUME_FLIGHT_SPRITES[id]);
+      if (flight) return flight;
+    }
+    return this.get(COSTUME_SPRITES[id]);
+  }
+
+  rocket(id: RocketSkinId): HTMLImageElement | null {
+    return this.get(ROCKET_SPRITES[id]);
+  }
+
+  gear(id: string): HTMLImageElement | null {
+    return this.get(GEAR_SPRITES[id]);
+  }
+
+  powerup(type: PowerUpType | 'JETPACK'): HTMLImageElement | null {
+    return this.get(POWERUP_SPRITES[type]);
+  }
+
+  gadget(id: CosmicGadgetId): HTMLImageElement | null {
+    return this.get(GADGET_SPRITES[id]);
   }
 
   furniture(id: string): HTMLImageElement | null {

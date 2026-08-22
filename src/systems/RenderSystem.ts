@@ -311,7 +311,9 @@ export class RenderSystem {
     aestheticSeed?: number,
     voidDangerRatio: number = 0,
     sectorFlashTimer: number = 0,
-    currentLevel?: LevelBiomeInfo
+    currentLevel?: LevelBiomeInfo,
+    cameraZoom: number = 1,
+    rewindGhosts: { x: number; y: number; alpha: number }[] = []
   ) {
     // Screen shake calculation
     ctx.save();
@@ -320,6 +322,11 @@ export class RenderSystem {
       const offsetX = (Math.random() - 0.5) * this.shakeIntensity;
       const offsetY = (Math.random() - 0.5) * this.shakeIntensity;
       ctx.translate(offsetX, offsetY);
+    }
+    if (cameraZoom && Math.abs(cameraZoom - 1) > 0.01) {
+      ctx.translate(width / 2, height / 2);
+      ctx.scale(cameraZoom, cameraZoom);
+      ctx.translate(-width / 2, -height / 2);
     }
 
     // Calculate player dynamic velocity vector for responsive orbital parallax
@@ -547,6 +554,9 @@ export class RenderSystem {
       prediction.targetPlanet.drawTargetLock(ctx, cameraY, prediction.landingPoint.x, prediction.landingPoint.y, cameraX);
     }
 
+    // 5b. Moon orbits and secret pathways
+    this.drawMoonOrbitsAndSecrets(ctx, planets, player, cameraX, cameraY);
+
     // 6. Planets (With rich storybook textures, grass tufts, gears, crystals, houses, trees)
     planets.forEach((p) => p.draw(ctx, cameraY, cameraX));
 
@@ -556,6 +566,21 @@ export class RenderSystem {
 
     // 8. Player (Animated little boy with waving red scarf, running stride, rocket flames)
     player.draw(ctx, cameraX, cameraY, freezeRatio);
+
+    if (rewindGhosts.length > 0) {
+      ctx.save();
+      for (const g of rewindGhosts) {
+        ctx.globalAlpha = g.alpha;
+        ctx.fillStyle = '#fde68a';
+        ctx.beginPath();
+        ctx.arc(g.x - cameraX, g.y - cameraY, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.8)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     // 8b. Hold-to-Charge Jump Strength Meter Ring
     if (player.isAttached && player.isCharging) {
@@ -1372,6 +1397,56 @@ export class RenderSystem {
 
     ctx.restore();
   }
+  private drawMoonOrbitsAndSecrets(
+    ctx: CanvasRenderingContext2D,
+    planets: Planet[],
+    player: Player,
+    cameraX: number,
+    cameraY: number
+  ) {
+    const byId = new Map(planets.map((p) => [p.id, p]));
+    ctx.save();
+    for (const moon of planets) {
+      if (!moon.isMoon || !moon.parentPlanetId) continue;
+      const parent = byId.get(moon.parentPlanetId);
+      if (!parent) continue;
+      const r = moon.orbitRadius || parent.radius + 80;
+      ctx.strokeStyle = moon.pathLane === 'SECRET' ? 'rgba(244, 114, 182, 0.35)' : 'rgba(148, 163, 184, 0.22)';
+      ctx.lineWidth = moon.pathLane === 'SECRET' ? 1.6 : 1;
+      ctx.setLineDash(moon.pathLane === 'SECRET' ? [5, 7] : [3, 8]);
+      ctx.beginPath();
+      ctx.arc(parent.x - cameraX, parent.y - cameraY, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    for (const secret of planets) {
+      if (!secret.isSecret) continue;
+      const near = Math.hypot(secret.x - player.x, secret.y - player.y) < 520 || secret.secretRevealed;
+      if (!near) continue;
+      let parent: Planet | null = null;
+      let best = Infinity;
+      for (const p of planets) {
+        if (p.isMoon || p.isSecret) continue;
+        const d = Math.hypot(p.x - secret.x, p.y - secret.y);
+        if (d < best) {
+          best = d;
+          parent = p;
+        }
+      }
+      if (!parent) continue;
+      ctx.strokeStyle = secret.secretRevealed ? 'rgba(244, 114, 182, 0.7)' : 'rgba(244, 114, 182, 0.32)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([7, 8]);
+      ctx.beginPath();
+      const x0 = parent.x - cameraX;
+      const y0 = parent.y - cameraY;
+      const x1 = secret.x - cameraX;
+      const y1 = secret.y - cameraY;
+      ctx.moveTo(x0, y0);
+      ctx.quadraticCurveTo((x0 + x1) / 2 + 40, (y0 + y1) / 2 - 30, x1, y1);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
 }
-
 

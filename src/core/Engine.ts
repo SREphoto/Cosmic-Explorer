@@ -16,6 +16,7 @@ import { RicochetSystem } from '../systems/RicochetSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { CosmicEventSystem } from '../systems/CosmicEventSystem';
 import { GameMode, PlayerStats, UserSavedData, ActiveSpaceAnomaly, ConstellationData, SpaceAnomalyData, LevelVictoryData, CosmicGadgetId } from '../types/game';
+import { Gesture } from './InputManager';
 
 interface PlayerStateSnapshot {
   x: number;
@@ -56,6 +57,12 @@ export class Engine {
   public freezeTimer: number = 0;
   public freezeRatio: number = 0;
   public iceShieldTimer: number = 0;
+  public cameraZoom: number = 1;
+  public isExploring: boolean = false;
+  public isScrubbing: boolean = false;
+  public scrubT: number = 1;
+  private gestureHintTimer: number = 0;
+  private liveBeforeScrub: PlayerStateSnapshot | null = null;
 
   public darkPlanetStayTimer: number = 0;
   public stoneWarningTimer: number = 0;
@@ -133,6 +140,24 @@ export class Engine {
         getYaw: () => this.player.theta,
         getSpeed: () => Math.hypot(this.player.vx, this.player.vy),
         getMode: () => this.mode,
+        getWalkDir: () => this.player.walkDir,
+        isExploring: () => this.isExploring,
+        setKeys: (codes: string[]) => {
+          let dir: -1 | 0 | 1 = 0;
+          if (codes.includes('KeyA') || codes.includes('ArrowLeft')) dir = -1;
+          if (codes.includes('KeyD') || codes.includes('ArrowRight')) dir = 1;
+          this.player.walkDir = dir;
+        },
+        enterExplore: () => {
+          if (this.player.currentPlanet) this.enterExploration(this.player.currentPlanet);
+        },
+        exitExplore: () => this.exitExploration(),
+        getFacing: () => this.player.facingSign,
+        getMoonCount: () => this.planets.filter((pl) => pl.isMoon).length,
+        getSecretCount: () => this.planets.filter((pl) => pl.isSecret).length,
+        getZoom: () => this.cameraZoom,
+        beginRewind: () => this.beginRewindScrub(),
+        confirmRewind: () => this.confirmRewindScrub(),
       };
     }
   }
@@ -227,7 +252,13 @@ export class Engine {
       activeAnomaly: null,
       deathReason: 'VOID',
       phoenixReviveUsed: false,
-      activeSynergy: getActiveSetBonus(this.savedData.equippedGear)
+      activeSynergy: getActiveSetBonus(this.savedData.equippedGear),
+      isExploring: false,
+      explorePlanetName: undefined,
+      isRewindScrubbing: false,
+      rewindScrubSeconds: 0,
+      rewindMaxSeconds: 4,
+      gestureHint: 'Hold to jump · swipe up jetpack'
     };
 
     this.proceduralGenerator.generateInitialCluster(this.planets, this.collectibles, this.powerUps, checkpointToUse);
@@ -247,6 +278,14 @@ export class Engine {
     this.player.iceShieldActive = false;
     this.darkPlanetStayTimer = 0;
     this.stoneWarningTimer = 0;
+    this.cameraZoom = 1;
+    this.isExploring = false;
+    this.isScrubbing = false;
+    this.scrubT = 1;
+    this.player.isExploring = false;
+    this.player.walkDir = 0;
+    this.liveBeforeScrub = null;
+    this.flashHint('Hold to jump · swipe up jetpack · swipe down rewind');
 
     this.setMode('PLAYING');
     audioEngine.startMusic();
@@ -298,23 +337,12 @@ export class Engine {
 
   public onChargeStart() {
     if (this.mode !== 'PLAYING') return;
+    if (this.isExploring || this.isScrubbing) return;
 
     if (this.player.isAttached) {
       this.player.isCharging = true;
       this.player.chargeRatio = 0.08;
       HapticManager.triggerLight();
-    } else {
-      // Airborne: Check for Ricochet Rocket Shoes bounce or Jetpack Rescue
-      const nearPlanet = RicochetSystem.findBounceTarget(this.player, this.planets, 50);
-      if (nearPlanet) {
-        RicochetSystem.executeRicochet(this.player, nearPlanet);
-        this.stats.ricochetsExecuted++;
-        this.stats.score += 200;
-        audioEngine.playRicochet();
-        HapticManager.triggerPerfectJump();
-      } else if (this.stats.jetpackChargesRemaining > 0) {
-        this.triggerJetpackRescue();
-      }
     }
   }
 
@@ -345,6 +373,356 @@ export class Engine {
         this.renderSystem.triggerScreenShake(5, 0.15);
         this.particleSystem.emitJetpackTrail(this.player.x, this.player.y, this.player.activeRocketSkin.flameColor);
       }
+    }
+  }
+
+
+  public handleGesture(g: Gesture) {
+    if (g.type === 'KEY_PAUSE') {
+      if (this.isScrubbing) {
+        this.cancelRewindScrub();
+        return;
+      }
+      if (this.mode === 'PLAYING') this.pauseGame();
+      else if (this.mode === 'PAUSED') this.resumeGame();
+      return;
+    }
+
+    if (this.mode !== 'PLAYING') return;
+
+    if (g.type === 'WALK') {
+      this.player.walkDir = g.dir;
+      return;
+    }
+
+    if (g.type === 'SCRUB') {
+      if (this.isScrubbing) {
+        this.scrubT = Math.max(0, Math.min(1, this.scrubT + g.tDelta * 0.28));
+        this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
+      }
+      return;
+    }
+
+    if (this.isScrubbing) {
+      if (g.type === 'SWIPE' && g.dir === 'UP') {
+        this.cancelRewindScrub();
+        return;
+      }
+      if (g.type === 'TAP' || g.type === 'DOUBLE_TAP' || g.type === 'KEY_REWIND') {
+        this.confirmRewindScrub();
+        return;
+      }
+      if (g.type === 'SWIPE' && (g.dir === 'LEFT' || g.dir === 'RIGHT')) {
+        this.scrubT = Math.max(0, Math.min(1, this.scrubT + (g.dir === 'RIGHT' ? 0.12 : -0.12)));
+        this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
+      }
+      return;
+    }
+
+    if (this.isExploring) {
+      if ((g.type === 'SWIPE' && g.dir === 'DOWN') || g.type === 'KEY_EXPLORE') {
+        this.exitExploration();
+        return;
+      }
+      if (g.type === 'TAP' || g.type === 'DOUBLE_TAP') {
+        const w = this.screenToWorld(g.x, g.y);
+        this.tryDigAt(w.x, w.y);
+        return;
+      }
+      if (g.type === 'SWIPE' && g.dir === 'UP') {
+        this.exitExploration();
+        if (this.player.isAttached) {
+          this.player.isCharging = true;
+          this.player.chargeRatio = 0.7;
+          this.onChargeRelease(0.7);
+        }
+        return;
+      }
+      if (g.type === 'KEY_JETPACK') {
+        this.exitExploration();
+        this.triggerJetpackRescue();
+      }
+      return;
+    }
+
+    switch (g.type) {
+      case 'CHARGE_START':
+        this.onChargeStart();
+        break;
+      case 'CHARGE_CANCEL':
+        this.player.isCharging = false;
+        this.player.chargeRatio = 0;
+        break;
+      case 'CHARGE_RELEASE':
+        this.onChargeRelease(g.hold);
+        break;
+      case 'TAP':
+        if (!this.player.isAttached) {
+          const nearPlanet = RicochetSystem.findBounceTarget(this.player, this.planets, 50);
+          if (nearPlanet) {
+            RicochetSystem.executeRicochet(this.player, nearPlanet);
+            this.stats.ricochetsExecuted++;
+            this.stats.score += 200;
+            audioEngine.playRicochet();
+            HapticManager.triggerPerfectJump();
+            this.flashHint('Ricochet');
+          }
+        }
+        break;
+      case 'DOUBLE_TAP': {
+        const world = this.screenToWorld(g.x, g.y);
+        const tapped = this.findPlanetAt(world.x, world.y);
+        if (this.player.isAttached && this.player.currentPlanet) {
+          if (!tapped || tapped === this.player.currentPlanet || Math.hypot(world.x - this.player.currentPlanet.x, world.y - this.player.currentPlanet.y) < this.player.currentPlanet.radius + 80) {
+            this.enterExploration(this.player.currentPlanet);
+          }
+        } else {
+          this.flashHint('Land, then double-tap to explore');
+        }
+        break;
+      }
+      case 'SWIPE':
+        if (g.dir === 'UP') {
+          this.triggerJetpackRescue();
+          this.flashHint('Jetpack');
+        } else if (g.dir === 'DOWN') {
+          this.beginRewindScrub();
+        } else if (g.dir === 'LEFT') {
+          this.triggerGadget();
+          this.flashHint('Gadget');
+        } else if (g.dir === 'RIGHT') {
+          if (!this.player.isAttached) {
+            this.player.vx += 240 * (this.player.facingSign >= 0 ? 1 : -1);
+            this.flashHint('Strafe boost');
+          } else {
+            this.triggerGadget();
+          }
+        }
+        break;
+      case 'KEY_JETPACK':
+        this.triggerJetpackRescue();
+        break;
+      case 'KEY_REWIND':
+        this.beginRewindScrub();
+        break;
+      case 'KEY_GADGET':
+        this.triggerGadget();
+        break;
+      case 'KEY_EXPLORE':
+        if (this.player.isAttached && this.player.currentPlanet) {
+          this.enterExploration(this.player.currentPlanet);
+        } else {
+          this.flashHint('Land to explore');
+        }
+        break;
+    }
+  }
+
+  public screenToWorld(sx: number, sy: number): { x: number; y: number } {
+    const z = this.cameraZoom || 1;
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+    return {
+      x: (sx - cx) / z + cx + this.cameraX,
+      y: (sy - cy) / z + cy + this.cameraY
+    };
+  }
+
+  private findPlanetAt(wx: number, wy: number): Planet | null {
+    let best: Planet | null = null;
+    let bestD = Infinity;
+    for (const p of this.planets) {
+      const d = Math.hypot(wx - p.x, wy - p.y);
+      if (d <= p.radius + 36 && d < bestD) {
+        best = p;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  private flashHint(msg: string) {
+    this.stats.gestureHint = msg;
+    this.gestureHintTimer = 2.4;
+    if (this.onStatsUpdate) this.onStatsUpdate(this.stats);
+  }
+
+  public enterExploration(planet: Planet) {
+    if (!this.player.isAttached) return;
+    this.isExploring = true;
+    this.player.isExploring = true;
+    this.player.walkDir = 0;
+    planet.secretRevealed = true;
+    this.stats.isExploring = true;
+    this.stats.explorePlanetName = planetTypeLabel(planet.type);
+    this.flashHint('Walk A/D · tap glowing veins to dig · swipe down to leave');
+    audioEngine.playPowerUpCollect();
+  }
+
+  public exitExploration() {
+    this.isExploring = false;
+    this.player.isExploring = false;
+    this.player.walkDir = 0;
+    this.stats.isExploring = false;
+    this.stats.explorePlanetName = undefined;
+    this.flashHint('Hold to jump');
+  }
+
+  public beginRewindScrub() {
+    if (this.stats.rewindChargesRemaining <= 0) {
+      this.flashHint('No rewind charges');
+      return;
+    }
+    if (this.stateHistory.length < 10) {
+      this.triggerRewind(true);
+      return;
+    }
+    this.liveBeforeScrub = {
+      x: this.player.x,
+      y: this.player.y,
+      vx: this.player.vx,
+      vy: this.player.vy,
+      theta: this.player.theta,
+      isAttached: this.player.isAttached,
+      planetId: this.player.currentPlanet?.id || null,
+      voidY: this.voidY,
+      time: performance.now()
+    };
+    this.isScrubbing = true;
+    this.scrubT = 0.4;
+    this.stats.isRewindScrubbing = true;
+    this.stats.rewindMaxSeconds = Math.min(4, this.stateHistory.length / 60);
+    this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
+    this.flashHint('Drag to choose how far · tap Jump here');
+    audioEngine.playClockTick();
+  }
+
+  public confirmRewindScrub() {
+    if (!this.isScrubbing) return;
+    this.applyScrubPreview();
+    const idx = Math.round(this.scrubT * (this.stateHistory.length - 1));
+    const snap = this.stateHistory[Math.max(0, Math.min(this.stateHistory.length - 1, idx))];
+    this.stats.rewindChargesRemaining--;
+    this.isRewinding = true;
+    this.player.isRewinding = true;
+    this.rewindTimer = 0.55;
+    this.voidY = snap.voidY + 280;
+    this.freezeTimer = 0;
+    this.freezeRatio = 0;
+    this.darkPlanetStayTimer = 0;
+    this.player.petrificationRatio = 0;
+    this.player.isPetrified = false;
+    if (snap.planetId) {
+      const planet = this.planets.find((p) => p.id === snap.planetId);
+      if (planet) {
+        this.player.attachToPlanet(planet, snap.theta);
+        this.lastSafeLandedPlanet = planet;
+      }
+    }
+    this.particleSystem.emitLandingSparkles(this.player.x, this.player.y, '#fbbf24');
+    this.renderSystem.triggerScreenShake(10, 0.28);
+    audioEngine.playRewindSound();
+    this.isScrubbing = false;
+    this.stats.isRewindScrubbing = false;
+    this.liveBeforeScrub = null;
+    this.flashHint('Rewound');
+  }
+
+  public cancelRewindScrub() {
+    if (!this.isScrubbing) return;
+    const live = this.liveBeforeScrub;
+    if (live) {
+      this.player.x = live.x;
+      this.player.y = live.y;
+      this.player.vx = live.vx;
+      this.player.vy = live.vy;
+      this.player.theta = live.theta;
+      this.voidY = live.voidY;
+      if (live.isAttached && live.planetId) {
+        const planet = this.planets.find((p) => p.id === live.planetId);
+        if (planet) this.player.attachToPlanet(planet, live.theta);
+      }
+    }
+    this.isScrubbing = false;
+    this.stats.isRewindScrubbing = false;
+    this.liveBeforeScrub = null;
+    this.flashHint('Rewind cancelled');
+  }
+
+  private applyScrubPreview() {
+    if (this.stateHistory.length === 0) return;
+    const idx = Math.round(this.scrubT * (this.stateHistory.length - 1));
+    const snap = this.stateHistory[Math.max(0, Math.min(this.stateHistory.length - 1, idx))];
+    this.player.x = snap.x;
+    this.player.y = snap.y;
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.player.theta = snap.theta;
+    this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
+  }
+
+  public tryDigAt(wx: number, wy: number) {
+    const planet = this.player.currentPlanet;
+    if (!planet || !this.isExploring) return;
+    let best = -1;
+    let bestD = 48;
+    for (let i = 0; i < planet.digSites.length; i++) {
+      const site = planet.digSites[i];
+      if (site.harvested) continue;
+      const sx = planet.x + Math.cos(site.angle) * planet.radius;
+      const sy = planet.y + Math.sin(site.angle) * planet.radius;
+      const dTap = Math.hypot(wx - sx, wy - sy);
+      const dPlayer = Math.hypot(this.player.x - sx, this.player.y - sy);
+      const d = Math.min(dTap, dPlayer);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best < 0) {
+      this.flashHint('Walk to a glowing vein');
+      return;
+    }
+    const site = planet.digSites[best];
+    const tools = this.savedData.homePlanet?.craftedTools as Array<{ id: string; level?: number }> | undefined;
+    const hasTool = hasCraftedTool(tools, site.requiredTool);
+    const yieldAmt = Math.max(1, Math.round(site.amount * (hasTool ? 1 : 0.4)));
+    site.harvested = true;
+    if (this.savedData.homePlanet) {
+      const supplies = this.savedData.homePlanet.supplies;
+      if (site.resource === 'timber') supplies.timber += yieldAmt;
+      else if (site.resource === 'quartz') supplies.quartz += yieldAmt;
+      else if (site.resource === 'alloys') supplies.alloys += yieldAmt;
+      else if (site.resource === 'plasma') supplies.plasmaCells += yieldAmt;
+      else supplies.starDust = (supplies.starDust || 0) + yieldAmt;
+      StorageManager.saveData(this.savedData);
+    }
+    this.stats.score += yieldAmt * 8;
+    this.awardXP(hasTool ? 12 : 6);
+    this.particleSystem.emitLandingSparkles(this.player.x, this.player.y, '#fde68a');
+    this.flashHint(hasTool ? `Dug ${yieldAmt} ${site.resource}` : `Bare hands · ${yieldAmt} ${site.resource}`);
+    audioEngine.playStarCollect(0);
+  }
+
+  private updateMoonOrbits(dt: number) {
+    const byId = new Map(this.planets.map((pl) => [pl.id, pl]));
+    for (const moon of this.planets) {
+      if (!moon.isMoon || !moon.parentPlanetId) continue;
+      const parent = byId.get(moon.parentPlanetId);
+      if (!parent) continue;
+      moon.orbitAngle = (moon.orbitAngle || 0) + (moon.orbitSpeed || 0.5) * dt;
+      const r = moon.orbitRadius || parent.radius + 80;
+      moon.x = parent.x + Math.cos(moon.orbitAngle) * r;
+      moon.y = parent.y + Math.sin(moon.orbitAngle) * r;
+    }
+  }
+
+  private revealNearbySecrets() {
+    for (const p of this.planets) {
+      if (!p.isSecret || p.secretRevealed) continue;
+      const d = Math.hypot(p.x - this.player.x, p.y - this.player.y);
+      if (d < 220) p.secretRevealed = true;
+      if (this.player.currentPlanet?.pathLane === 'SECRET' && d < 480) p.secretRevealed = true;
     }
   }
 
@@ -618,6 +996,25 @@ export class Engine {
       }
     }
 
+    if (this.gestureHintTimer > 0) {
+      this.gestureHintTimer -= dt;
+      if (this.gestureHintTimer <= 0) this.stats.gestureHint = null;
+    }
+
+    this.updateMoonOrbits(dt);
+    this.revealNearbySecrets();
+
+    if (this.isScrubbing) {
+      this.applyScrubPreview();
+      const targetCamX = this.player.x - this.canvas.width / 2;
+      const targetCamY = this.player.y - this.canvas.height / 2;
+      this.cameraX += (targetCamX - this.cameraX) * Math.min(1, 10 * dt);
+      this.cameraY += (targetCamY - this.cameraY) * Math.min(1, 10 * dt);
+      this.stats.isRewindScrubbing = true;
+      if (this.onStatsUpdate) this.onStatsUpdate(this.stats);
+      return;
+    }
+
     // 1. Update Player & Hold-to-Charge Jump Strength
     if (this.player.isAttached && this.player.isCharging) {
       this.player.chargeRatio = Math.min(1.0, this.player.chargeRatio + dt / PHYSICS_CONFIG.CHARGE_TIME_MAX);
@@ -860,6 +1257,8 @@ export class Engine {
     const targetCamY = this.player.y - this.canvas.height / 2;
     this.cameraX += (targetCamX - this.cameraX) * (7 * dt);
     this.cameraY += (targetCamY - this.cameraY) * (7 * dt);
+    const targetZoom = this.isExploring ? 2.35 : 1;
+    this.cameraZoom += (targetZoom - this.cameraZoom) * Math.min(1, 4.2 * dt);
 
     // 7. Procedural World Spawning ahead of player
     this.proceduralGenerator.generateUpTo(this.player.y - 1800, this.planets, this.collectibles, this.powerUps);
@@ -868,7 +1267,10 @@ export class Engine {
     // 8. Advancing Dark Void
     const voidSlow = 1 - Math.min(0.55, skillBonuses.voidSlowRatio || 0);
     this.voidSpeed = (PHYSICS_CONFIG.VOID_INITIAL_SPEED + (this.stats.maxAltitude / 1000) * PHYSICS_CONFIG.VOID_SPEED_ACCELERATION) * voidSlow;
-    this.voidY -= this.voidSpeed * dt;
+    if (!this.isExploring) {
+      this.voidY -= this.voidSpeed * dt;
+    }
+    this.stats.isExploring = this.isExploring;
 
     const distToVoid = this.voidY - this.player.y;
     audioEngine.updateVoidWarning(distToVoid);
@@ -1192,6 +1594,11 @@ export class Engine {
       }
     }
 
+    if (planet.isSecret) planet.secretRevealed = true;
+    if (planet.pathLane === 'SECRET') {
+      this.flashHint('Secret path');
+    }
+
     if (!planet.visited) {
       planet.visited = true;
       // Void pushback reward for new planet landing (+ gear and skill pushbacks)
@@ -1266,6 +1673,14 @@ export class Engine {
     const prediction = PhysicsSystem.predictTrajectory(this.player, this.planets);
     const currentLevelForRender = ProceduralGenerator.getLevelForPlanetIndex(Math.max(1, this.stats.planetsLandedCount || 1));
 
+    const ghosts = this.isScrubbing
+      ? this.stateHistory.filter((_, i) => i % 14 === 0).map((h, i, arr) => ({
+          x: h.x,
+          y: h.y,
+          alpha: 0.12 + (i / Math.max(1, arr.length)) * 0.35
+        }))
+      : [];
+
     this.renderSystem.render(
       this.ctx,
       this.canvas.width,
@@ -1285,7 +1700,9 @@ export class Engine {
       this.savedData?.randomizeAesthetics ? this.runAestheticSeed : undefined,
       this.stats.voidDangerRatio || 0,
       this.sectorFlashTimer,
-      currentLevelForRender
+      currentLevelForRender,
+      this.cameraZoom,
+      ghosts
     );
 
     // Render ParticleSystem overlay
@@ -1332,4 +1749,8 @@ export class Engine {
       cancelAnimationFrame(this.animFrameId);
     }
   }
+}
+
+function planetTypeLabel(type: string): string {
+  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }

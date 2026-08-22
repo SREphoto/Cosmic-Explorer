@@ -1,6 +1,6 @@
 import type { CosmicGadgetId, CostumeId, PlanetType, PowerUpType, RocketSkinId } from '../types/game';
 
-const REV = 'v6';
+const REV = 'v7';
 
 export const PLANET_SPRITES: Record<PlanetType, string> = {
   GRASS: `/sprites/planets/grass.png?${REV}`,
@@ -225,6 +225,10 @@ export const RESOURCE_SPRITES = {
   diamond: `/sprites/resources/diamond.png?${REV}`,
 };
 
+export const COSTUME_WALK_FRAMES: Partial<Record<CostumeId, string[]>> = {
+  ASTRONAUT: [0, 1, 2, 3].map((n) => `/sprites/characters/astronaut_walk_${n}.png?${REV}`),
+};
+
 export const COLLECTIBLE_SPRITES = {
   STAR: `/sprites/items/star.png?${REV}`,
   DIAMOND: `/sprites/items/diamond.png?${REV}`,
@@ -246,6 +250,7 @@ const ALL_SRCS: string[] = [
   ...Object.values(TOOL_SPRITES),
   ...Object.values(RESOURCE_SPRITES),
   ...Object.values(COLLECTIBLE_SPRITES),
+  ...Object.values(COSTUME_WALK_FRAMES).flat(),
 ];
 
 class SpriteAtlas {
@@ -272,7 +277,14 @@ class SpriteAtlas {
     return this.get(BIOME_SPRITES[id]);
   }
 
-  costume(id: CostumeId, pose: 'idle' | 'flight' = 'idle'): HTMLImageElement | null {
+  costume(id: CostumeId, pose: 'idle' | 'flight' | 'walk' = 'idle', frame = 0): HTMLImageElement | null {
+    if (pose === 'walk') {
+      const frames = COSTUME_WALK_FRAMES[id];
+      if (frames && frames.length) {
+        const img = this.get(frames[frame % frames.length]);
+        if (img) return img;
+      }
+    }
     if (pose === 'flight') {
       const flight = this.get(COSTUME_FLIGHT_SPRITES[id]);
       if (flight) return flight;

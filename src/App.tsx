@@ -14,6 +14,7 @@ import { DocsViewerModal } from './ui/DocsViewerModal';
 import { GameOverModal } from './ui/GameOverModal';
 import { PostRunSummaryModal } from './ui/PostRunSummaryModal';
 import { HUD } from './ui/HUD';
+import { PauseMenu } from './ui/PauseMenu';
 import { MainMenu } from './ui/MainMenu';
 import { QuestLogModal } from './ui/QuestLogModal';
 import { UpgradesModal } from './ui/UpgradesModal';
@@ -31,7 +32,6 @@ import { MedalChestModal } from './ui/MedalChestModal';
 import { FirebaseService, auth } from './core/firebase';
 import { RoomData, TrapType } from './types/multiplayer';
 import { DailyChallengeSystem } from './systems/DailyChallengeSystem';
-import { Play, RotateCcw, Home, HelpCircle, Compass } from 'lucide-react';
 import { ToastContainer, showToast } from './ui/Toast';
 
 export default function App() {
@@ -84,18 +84,9 @@ export default function App() {
     const inputManager = new InputManager();
     inputManagerRef.current = inputManager;
 
-    inputManager.setCallbacks(
-      () => {
-        if (engineRef.current) {
-          engineRef.current.onChargeStart();
-        }
-      },
-      (holdDuration) => {
-        if (engineRef.current) {
-          engineRef.current.onChargeRelease(holdDuration);
-        }
-      }
-    );
+    inputManager.setHandler((g) => {
+      engineRef.current?.handleGesture(g);
+    });
 
     inputManager.startListening(canvasRef.current);
 
@@ -109,6 +100,10 @@ export default function App() {
 
     engine.onStatsUpdate = (newStats) => {
       setStats({ ...newStats });
+      if (inputManagerRef.current) {
+        inputManagerRef.current.exploring = !!newStats.isExploring;
+        inputManagerRef.current.scrubbing = !!newStats.isRewindScrubbing;
+      }
     };
 
     engine.onLevelVictory = (victoryData) => {
@@ -123,19 +118,12 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         const currentMode = engineRef.current?.state;
-        if (currentMode === 'GAMEOVER' || currentMode === 'PAUSED') {
+        if (currentMode === 'GAMEOVER') {
           handleStartGame();
           return;
         }
-      }
-      if (e.key === 'r' || e.key === 'R') {
-        if (engineRef.current && engineRef.current.state === 'PLAYING') {
-          engineRef.current.triggerRewind();
-        }
-      }
-      if (e.key === 'g' || e.key === 'G') {
-        if (engineRef.current && engineRef.current.state === 'PLAYING') {
-          engineRef.current.triggerGadget();
+        if (currentMode === 'PAUSED') {
+          engineRef.current?.resumeGame();
         }
       }
     };
@@ -508,19 +496,15 @@ export default function App() {
           <>
             <HUD
               stats={stats}
-              currentStage={engineRef.current.questSystem.getCurrentStage()}
               isMagnetActive={engineRef.current.powerUpSystem.isMagnetActive}
               magnetTimer={engineRef.current.powerUpSystem.magnetTimer}
               magnetMaxTimer={engineRef.current.powerUpSystem.magnetDurationMax}
               isCometActive={engineRef.current.powerUpSystem.isCometActive}
               cometTimer={engineRef.current.powerUpSystem.cometTimer}
               cometMaxTimer={engineRef.current.powerUpSystem.cometDurationMax}
-              isPlayerAttached={engineRef.current.player.isAttached}
               onPause={handlePauseGame}
-              onTriggerJetpack={() => engineRef.current?.triggerJetpackRescue()}
-              onTriggerRewind={() => engineRef.current?.triggerRewind()}
-              onTriggerGadget={() => engineRef.current?.triggerGadget()}
-              onOpenStarGazing={handleOpenStarGazing}
+              onConfirmRewind={() => engineRef.current?.confirmRewindScrub()}
+              onCancelRewind={() => engineRef.current?.cancelRewindScrub()}
             />
 
             {/* Multiplayer 1v1 In-Game HUD Overlay (When in a live match) */}
@@ -539,49 +523,24 @@ export default function App() {
         )}
 
         {/* 3. Pause Screen Overlay */}
-        {gameMode === 'PAUSED' && (
-          <div className="absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 text-white">
-            <div className="bg-slate-900/95 border border-slate-750 rounded-3xl w-full max-w-xs p-6 flex flex-col items-center text-center shadow-2xl space-y-4 ui-interactive">
-              <h2 className="text-2xl font-bold text-sky-400">Voyage Paused</h2>
-              <div className="w-full space-y-2.5">
-                <button
-                  onClick={handleResumeGame}
-                  className="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-3 rounded-xl transition-all duration-200 shadow flex items-center justify-center gap-2 btn-grow glow-sky-hover"
-                >
-                  <Play className="w-5 h-5 fill-current" />
-                  <span>Resume</span>
-                </button>
-                <button
-                  onClick={() => handleStartGame()}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 rounded-xl border border-slate-700 transition-all duration-200 flex items-center justify-center gap-2 btn-grow-sm glow-subtle-hover"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Restart Run</span>
-                </button>
-                <button
-                  onClick={() => setActiveModal('MAP')}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2 rounded-xl border border-slate-700 transition-all duration-200 flex items-center justify-center gap-2 text-xs btn-grow-sm glow-sky-hover"
-                >
-                  <Compass className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Sector Map</span>
-                </button>
-                <button
-                  onClick={() => setActiveModal('ONBOARDING')}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2 rounded-xl border border-slate-700 transition-all duration-200 flex items-center justify-center gap-2 text-xs btn-grow-sm glow-amber-hover"
-                >
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-                  <span>How to Play</span>
-                </button>
-                <button
-                  onClick={handleGoToMenu}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 rounded-xl border border-slate-700 transition-all duration-200 flex items-center justify-center gap-2 btn-grow-sm glow-emerald-hover"
-                >
-                  <Home className="w-4 h-4 text-emerald-400" />
-                  <span>Main Menu</span>
-                </button>
-              </div>
-            </div>
-          </div>
+        {gameMode === 'PAUSED' && !isStarGazingOpen && (
+          <PauseMenu
+            stats={stats}
+            currentStage={engineRef.current?.questSystem.getCurrentStage() || null}
+            isPlayerAttached={!!engineRef.current?.player.isAttached}
+            onResume={handleResumeGame}
+            onRestart={() => handleStartGame()}
+            onMenu={handleGoToMenu}
+            onOpenMap={() => setActiveModal('MAP')}
+            onOpenHelp={() => setActiveModal('ONBOARDING')}
+            onExplore={() => {
+              const planet = engineRef.current?.player.currentPlanet;
+              if (planet && engineRef.current) {
+                engineRef.current.resumeGame();
+                engineRef.current.enterExploration(planet);
+              }
+            }}
+          />
         )}
 
         {/* Post Run Summary Screen Overlay */}

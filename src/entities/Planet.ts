@@ -1,4 +1,4 @@
-import { PlanetData, PlanetType } from '../types/game';
+import { DigSite, PlanetData, PlanetType } from '../types/game';
 import { SurfaceHazard } from './SurfaceHazard';
 import { spriteAtlas } from '../core/SpriteAtlas';
 
@@ -27,7 +27,17 @@ export class Planet implements PlanetData {
   isDark?: boolean;
   altitudeTier?: number;
   flareRotation: number = 0;
+  spinAngle: number = 0;
   hazards: SurfaceHazard[] = [];
+  isMoon?: boolean;
+  parentPlanetId?: string;
+  orbitRadius?: number;
+  orbitAngle?: number;
+  orbitSpeed?: number;
+  pathLane?: 'MAIN' | 'SECRET';
+  isSecret?: boolean;
+  secretRevealed?: boolean;
+  digSites: DigSite[] = [];
 
   constructor(data: PlanetData) {
     this.id = data.id;
@@ -53,6 +63,15 @@ export class Planet implements PlanetData {
     this.levelGoalNumber = data.levelGoalNumber;
     this.isDark = data.isDark || data.type === 'DARK';
     this.altitudeTier = data.altitudeTier || 1;
+    this.isMoon = data.isMoon;
+    this.parentPlanetId = data.parentPlanetId;
+    this.orbitRadius = data.orbitRadius;
+    this.orbitAngle = data.orbitAngle ?? 0;
+    this.orbitSpeed = data.orbitSpeed ?? 0.6;
+    this.pathLane = data.pathLane || 'MAIN';
+    this.isSecret = data.isSecret;
+    this.secretRevealed = data.secretRevealed;
+    this.digSites = data.digSites ? data.digSites.map((d) => ({ ...d })) : [];
 
     this.initHazards();
   }
@@ -70,6 +89,7 @@ export class Planet implements PlanetData {
 
   public update(dt: number) {
     this.flareRotation += dt * 0.8;
+    this.spinAngle += this.angularVelocity * this.rotationDirection * dt * 0.22;
   }
 
   public draw(ctx: CanvasRenderingContext2D, cameraY: number, cameraX: number = 0) {
@@ -177,6 +197,7 @@ export class Planet implements PlanetData {
     if (planetImg) {
       const size = this.radius * 2.12;
       ctx.save();
+      ctx.rotate(this.spinAngle);
       ctx.beginPath();
       ctx.arc(0, 0, this.radius * 1.04, 0, Math.PI * 2);
       ctx.clip();
@@ -629,6 +650,19 @@ export class Planet implements PlanetData {
       ctx.restore();
     });
 
+    this.drawDigSites(ctx);
+    if (this.isSecret && !this.secretRevealed) {
+      ctx.save();
+      ctx.globalAlpha = 0.28 + Math.sin(nowAnim * 2.4) * 0.08;
+      ctx.strokeStyle = 'rgba(244, 114, 182, 0.8)';
+      ctx.setLineDash([5, 6]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // 10. Front Half of Planetary Ring
     if (this.hasRing) {
       ctx.save();
@@ -693,6 +727,32 @@ export class Planet implements PlanetData {
     }
 
     ctx.restore();
+  }
+
+
+  private drawDigSites(ctx: CanvasRenderingContext2D) {
+    const now = Date.now() * 0.004;
+    for (const site of this.digSites) {
+      if (site.harvested) continue;
+      ctx.save();
+      ctx.rotate(site.angle);
+      const pulse = 0.65 + Math.sin(now + site.angle) * 0.25;
+      ctx.translate(this.radius - 3, 0);
+      ctx.fillStyle = `rgba(253, 224, 71, ${0.28 + pulse * 0.22})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 7 + pulse * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   public drawTargetLock(ctx: CanvasRenderingContext2D, cameraY: number, landingX: number, landingY: number, cameraX: number = 0) {

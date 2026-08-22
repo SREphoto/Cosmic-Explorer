@@ -1,4 +1,4 @@
-import { Costume, CostumeId, RocketSkin, RocketSkinId, TrailPoint, Vector2D } from '../types/game';
+import { Costume, CostumeId, EquippedGear, RocketSkin, RocketSkinId, TrailPoint, Vector2D } from '../types/game';
 import { INITIAL_COSTUMES, INITIAL_ROCKET_SKINS, PHYSICS_CONFIG } from '../core/Config';
 import { drawCenteredSprite, spriteAtlas } from '../core/SpriteAtlas';
 import { Planet } from './Planet';
@@ -60,6 +60,16 @@ export class Player {
   public cometTailIntensity: number = 0; // 0.0 to 1.0 dynamic comet tail strength
   public iceShieldActive: boolean = false;
   public gadgetFlashTimer: number = 0;
+  public facingSign: number = 1;
+  public walkDir: -1 | 0 | 1 = 0;
+  public isExploring: boolean = false;
+  public equippedGearIds: EquippedGear = {
+    helmetId: 'HELMET_DEFAULT',
+    suitId: 'SUIT_DEFAULT',
+    thrusterId: 'THRUSTER_DEFAULT',
+    relicId: 'RELIC_DEFAULT',
+    accessoryId: 'GEAR_SCARF_RED'
+  };
 
   constructor(costumeId: CostumeId = 'ASTRONAUT', rocketSkinId: RocketSkinId = 'APOLLO') {
     this.activeCostume = INITIAL_COSTUMES.find((c) => c.id === costumeId) || INITIAL_COSTUMES[0];
@@ -89,10 +99,9 @@ export class Player {
     this.activeAccessoryId = accessoryId;
   }
 
-  public setEquippedGear(gear: { accessoryId?: string }) {
-    if (gear.accessoryId) {
-      this.activeAccessoryId = gear.accessoryId;
-    }
+  public setEquippedGear(gear: Partial<EquippedGear> & { accessoryId?: string }) {
+    this.equippedGearIds = { ...this.equippedGearIds, ...gear };
+    if (gear.accessoryId) this.activeAccessoryId = gear.accessoryId;
   }
 
   public attachToPlanet(planet: Planet, contactAngle?: number) {
@@ -241,12 +250,23 @@ export class Player {
     // 4. Movement Logic & Dynamic Kinematics
     if (this.isAttached && this.currentPlanet) {
       const planet = this.currentPlanet;
-      const dTheta = planet.angularVelocity * planet.rotationDirection * dt;
+      let dTheta = planet.angularVelocity * planet.rotationDirection * dt;
+      if (this.isExploring) {
+        const tx = -Math.sin(this.theta);
+        const rightSign = tx >= 0 ? 1 : -1;
+        dTheta = this.walkDir * rightSign * 1.35 * dt;
+      }
       this.theta += dTheta;
       this.rotationAccumulator += Math.abs(dTheta);
+
+      const spinFacing = this.isExploring
+        ? (this.walkDir !== 0 ? this.walkDir : this.facingSign)
+        : planet.rotationDirection;
+      this.facingSign += (spinFacing - this.facingSign) * Math.min(1, 14 * dt);
+      if (Math.abs(this.facingSign) < 0.08) this.facingSign = spinFacing || 1;
       
       // Natural running speed stride
-      const strideSpeed = Math.abs(planet.angularVelocity) * 6.5;
+      const strideSpeed = this.isExploring ? Math.abs(this.walkDir) * 8 : Math.abs(planet.angularVelocity) * 6.5;
       this.runCycle += strideSpeed * dt * 10;
 
       // Dynamic forward body lean proportional to rotation velocity
@@ -266,6 +286,8 @@ export class Player {
       // Airborne Free Flight Movement
       this.x += this.vx * dt;
       this.y += this.vy * dt;
+      const flyFace = Math.abs(this.vx) > 12 ? Math.sign(this.vx) : this.facingSign;
+      this.facingSign += (flyFace - this.facingSign) * Math.min(1, 8 * dt);
 
       this.bodyLean += (0 - this.bodyLean) * (6.0 * dt);
 
@@ -433,9 +455,11 @@ export class Player {
       angle = Math.atan2(this.vy, this.vx) + Math.PI / 2;
     }
     ctx.rotate(angle);
+    ctx.scale(this.facingSign >= 0 ? 1 : -1, 1);
 
     // Squash & Stretch
-    ctx.scale(this.landSquash, this.landStretch);
+    const stepSquash = this.isAttached ? 1 + Math.sin(this.runCycle) * 0.045 : 1;
+    ctx.scale(this.landSquash * stepSquash, this.landStretch / stepSquash);
 
     // Magnet aura
     if (this.isMagnetActive) {
@@ -472,14 +496,20 @@ export class Player {
       this.drawIceShieldAura(ctx);
     }
 
-    const pose = this.isAttached ? 'idle' : 'flight';
-    const costumeImg = spriteAtlas.costume(this.activeCostume.id, pose) || spriteAtlas.costume(this.activeCostume.id, 'idle');
+    const walkFrame = Math.abs(this.runCycle * 0.55) | 0;
+    const moving = this.isAttached && (this.isExploring ? this.walkDir !== 0 : true);
+    const pose = !this.isAttached ? 'flight' : moving ? 'walk' : 'idle';
+    const costumeImg =
+      spriteAtlas.costume(this.activeCostume.id, pose as 'idle' | 'flight' | 'walk', walkFrame) ||
+      spriteAtlas.costume(this.activeCostume.id, 'idle');
 
     if (costumeImg) {
+      this.drawEquippedGear(ctx, 'back');
       this.drawSpriteRocket(ctx);
-      const bob = this.isAttached ? Math.sin(this.runCycle * 2) * 1.2 : 0;
+      const bob = this.isAttached ? Math.sin(this.runCycle * 2) * 1.6 : 0;
       const size = this.isAttached ? 48 : 52;
       drawCenteredSprite(ctx, costumeImg, 0, bob - 8, size);
+      this.drawEquippedGear(ctx, 'front');
     } else {
       // 1. Mounted Rocket Thruster Backpack
       this.drawRocketBackpack(ctx);
@@ -523,6 +553,44 @@ export class Player {
     }
 
     ctx.restore();
+  }
+
+  private drawEquippedGear(ctx: CanvasRenderingContext2D, layer: 'back' | 'front') {
+    const g = this.equippedGearIds;
+    if (layer === 'back') {
+      const capeId = g.accessoryId;
+      if (capeId && (capeId.includes('CAPE') || capeId.includes('CLOAK') || capeId.includes('SCARF'))) {
+        const img = spriteAtlas.gear(capeId);
+        if (img) {
+          const sway = Math.sin(this.runCycle * 0.8) * 3;
+          ctx.save();
+          ctx.globalAlpha = 0.92;
+          ctx.translate(sway, 10);
+          ctx.rotate(-0.15 + sway * 0.03);
+          drawCenteredSprite(ctx, img, 0, 6, 28);
+          ctx.restore();
+        }
+      }
+      return;
+    }
+    const helmetId = g.helmetId;
+    if (helmetId && helmetId !== 'HELMET_DEFAULT') {
+      const img = spriteAtlas.gear(helmetId);
+      if (img) drawCenteredSprite(ctx, img, 0, -18, 16);
+    }
+    const relicId = g.relicId;
+    if (relicId && relicId !== 'RELIC_DEFAULT') {
+      const img = spriteAtlas.gear(relicId);
+      if (img) drawCenteredSprite(ctx, img, 7, -2, 11);
+    }
+    const acc = g.accessoryId;
+    if (acc && (acc.includes('CLOCK') || acc.includes('AMULET'))) {
+      const img = spriteAtlas.gear(acc);
+      if (img) {
+        const pend = Math.sin(this.watchPendulumAngle || this.runCycle) * 3;
+        drawCenteredSprite(ctx, img, pend, 2, 12);
+      }
+    }
   }
 
   private drawIceShieldAura(ctx: CanvasRenderingContext2D) {

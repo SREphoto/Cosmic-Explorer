@@ -168,6 +168,15 @@ export interface CheckpointInfo {
   rewardXP: number;
 }
 
+export interface DigSite {
+  id: string;
+  angle: number;
+  resource: 'timber' | 'quartz' | 'alloys' | 'plasma' | 'starDust';
+  amount: number;
+  requiredTool: string;
+  harvested: boolean;
+}
+
 export interface PlanetData {
   id: string;
   x: number;
@@ -179,7 +188,7 @@ export interface PlanetData {
   type: PlanetType;
   color: string;
   secondaryColor: string;
-  surfaceDecorations: { angle: number; type: 'CRATER' | 'TREE' | 'DAISY' | 'FLAG' | 'TELESCOPE' | 'HOUSE' | 'DOG' | 'RIVET' | 'CANNON' | 'SPIKE' | 'LAVA_VENT' | 'URCHIN' | 'CRYSTAL' | 'FLARE' | 'CHECKPOINT_BEACON' | 'DARK_CRYSTAL' | 'RUNES'; size: number }[];
+  surfaceDecorations: { angle: number; type: 'CRATER' | 'TREE' | 'DAISY' | 'FLAG' | 'TELESCOPE' | 'HOUSE' | 'DOG' | 'RIVET' | 'CANNON' | 'SPIKE' | 'LAVA_VENT' | 'URCHIN' | 'CRYSTAL' | 'FLARE' | 'CHECKPOINT_BEACON' | 'DARK_CRYSTAL' | 'RUNES' | 'DIG_SITE'; size: number }[];
   visited: boolean;
   orbitStarCount?: number;
   hasRing?: boolean;
@@ -192,6 +201,15 @@ export interface PlanetData {
   levelGoalNumber?: number;
   isDark?: boolean;
   altitudeTier?: number;
+  isMoon?: boolean;
+  parentPlanetId?: string;
+  orbitRadius?: number;
+  orbitAngle?: number;
+  orbitSpeed?: number;
+  pathLane?: 'MAIN' | 'SECRET';
+  isSecret?: boolean;
+  secretRevealed?: boolean;
+  digSites?: DigSite[];
 }
 
 export interface CollectibleData {
@@ -505,6 +523,12 @@ export interface PlayerStats {
   currentLevelName: string;
   currentLevelSubtitle?: string;
   currentLevelTheme?: string;
+  isExploring?: boolean;
+  explorePlanetName?: string;
+  isRewindScrubbing?: boolean;
+  rewindScrubSeconds?: number;
+  rewindMaxSeconds?: number;
+  gestureHint?: string | null;
   sectorFlashTimer?: number;
   voidDistancePx?: number;
   voidEtaSeconds?: number;

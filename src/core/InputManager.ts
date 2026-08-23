@@ -8,12 +8,12 @@ export type Gesture =
   | { type: 'DOUBLE_TAP'; x: number; y: number }
   | { type: 'SWIPE'; dir: SwipeDir; dx: number; dy: number; x: number; y: number }
   | { type: 'WALK'; dir: -1 | 0 | 1 }
-  | { type: 'SCRUB'; tDelta: number }
   | { type: 'KEY_JETPACK' }
   | { type: 'KEY_REWIND' }
   | { type: 'KEY_GADGET' }
   | { type: 'KEY_EXPLORE' }
-  | { type: 'KEY_PAUSE' };
+  | { type: 'KEY_PAUSE' }
+  | { type: 'STEER'; axis: number };
 
 type GestureHandler = (g: Gesture) => void;
 
@@ -40,7 +40,9 @@ export class InputManager {
   private keys = new Set<string>();
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
   public exploring = false;
-  public scrubbing = false;
+  public tiltAxis = 0;
+  public pointerSteer = 0;
+  public tiltEnabled = false;
 
   constructor() {
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -48,6 +50,7 @@ export class InputManager {
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handlePointerUp = this.handlePointerUp.bind(this);
+    this.handleOrientation = this.handleOrientation.bind(this);
   }
 
   public setHandler(handler: GestureHandler) {
@@ -74,6 +77,7 @@ export class InputManager {
     window.addEventListener('pointerup', this.handlePointerUp as EventListener);
     window.addEventListener('pointercancel', this.handlePointerUp as EventListener);
     window.addEventListener('blur', this.clearKeys);
+    window.addEventListener('deviceorientation', this.handleOrientation, true);
   }
 
   public stopListening(targetElement?: HTMLElement | Window) {
@@ -88,6 +92,7 @@ export class InputManager {
     window.removeEventListener('pointerup', this.handlePointerUp as EventListener);
     window.removeEventListener('pointercancel', this.handlePointerUp as EventListener);
     window.removeEventListener('blur', this.clearKeys);
+    window.removeEventListener('deviceorientation', this.handleOrientation, true);
   }
 
   private clearKeys = () => {
@@ -123,7 +128,7 @@ export class InputManager {
     this.clearHoldTimer();
     this.holdTimer = setTimeout(() => {
       this.holdTimer = null;
-      if (!this.isPressed || this.moved || this.exploring || this.scrubbing) return;
+      if (!this.isPressed || this.moved || this.exploring) return;
       if (!this.charging) {
         this.charging = true;
         this.emit({ type: 'CHARGE_START' });
@@ -136,7 +141,7 @@ export class InputManager {
     const code = e.code;
     if (code === 'Space' || code === 'ArrowUp') {
       e.preventDefault();
-      if (this.exploring || this.scrubbing) return;
+      if (this.exploring) return;
       if (!this.charging) {
         this.charging = true;
         this.isPressed = true;
@@ -221,8 +226,6 @@ export class InputManager {
       return;
     }
 
-    if (this.scrubbing) return;
-
     // Delay charge so taps / double-taps / swipes are not jumps
     this.beginHoldCharge();
   }
@@ -237,21 +240,19 @@ export class InputManager {
     if (Math.hypot(dx, dy) > 28) {
       this.moved = true;
       this.clearHoldTimer();
-      if (this.charging && !this.scrubbing && !this.exploring) {
+      if (this.charging && !this.exploring) {
         this.emit({ type: 'CHARGE_CANCEL' });
         this.charging = false;
       }
-    }
-
-    if (this.scrubbing) {
-      this.emit({ type: 'SCRUB', tDelta: dx / 220 });
-      return;
     }
 
     if (this.exploring) {
       const w = this.canvas?.clientWidth || 400;
       const dir: -1 | 0 | 1 = p.x < w * 0.38 ? -1 : p.x > w * 0.62 ? 1 : Math.abs(dx) > 24 ? (dx > 0 ? 1 : -1) : 0;
       this.emit({ type: 'WALK', dir });
+    } else if (this.moved) {
+      this.pointerSteer = Math.max(-1, Math.min(1, dx / 90));
+      this.emit({ type: 'STEER', axis: this.pointerSteer });
     }
   }
 
@@ -259,6 +260,8 @@ export class InputManager {
     if (!this.isPressed) return;
     this.isPressed = false;
     this.clearHoldTimer();
+    this.pointerSteer = 0;
+    this.emit({ type: 'STEER', axis: 0 });
     const dx = this.lastX - this.startX;
     const dy = this.lastY - this.startY;
     const dist = Math.hypot(dx, dy);
@@ -271,11 +274,6 @@ export class InputManager {
       } else if (dist < SWIPE_MIN) {
         this.emitTap(this.lastX, this.lastY);
       }
-      this.charging = false;
-      return;
-    }
-
-    if (this.scrubbing) {
       this.charging = false;
       return;
     }
@@ -310,6 +308,33 @@ export class InputManager {
     this.lastTapX = x;
     this.lastTapY = y;
     this.emit({ type: 'TAP', x, y });
+  }
+
+  public async enableTilt(): Promise<boolean> {
+    this.tiltEnabled = true;
+    const DOE = window.DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<string>;
+    };
+    if (typeof DOE?.requestPermission === 'function') {
+      try {
+        const state = await DOE.requestPermission();
+        this.tiltEnabled = state === 'granted';
+      } catch {
+        this.tiltEnabled = false;
+      }
+    }
+    return this.tiltEnabled;
+  }
+
+  public disableTilt() {
+    this.tiltEnabled = false;
+    this.tiltAxis = 0;
+  }
+
+  private handleOrientation(e: DeviceOrientationEvent) {
+    if (!this.tiltEnabled) return;
+    const gamma = e.gamma ?? 0;
+    this.tiltAxis = Math.max(-1, Math.min(1, gamma / 28));
   }
 }
 

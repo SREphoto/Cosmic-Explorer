@@ -11,8 +11,6 @@ interface HUDProps {
   cometTimer: number;
   cometMaxTimer: number;
   onPause: () => void;
-  onConfirmRewind?: () => void;
-  onCancelRewind?: () => void;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -24,17 +22,12 @@ export const HUD: React.FC<HUDProps> = ({
   cometTimer,
   cometMaxTimer,
   onPause,
-  onConfirmRewind,
-  onCancelRewind,
 }) => {
   const voidDanger = Math.max(0, Math.min(1, stats.voidDangerRatio ?? 0));
   const voidEta = Math.max(0, stats.voidEtaSeconds ?? 0);
   const voidColor = voidDanger > 0.72 ? '#f43f5e' : voidDanger > 0.45 ? '#f59e0b' : '#38bdf8';
   const hint = stats.gestureHint;
   const exploring = !!stats.isExploring;
-  const scrubbing = !!stats.isRewindScrubbing;
-  const scrubMax = Math.max(0.001, stats.rewindMaxSeconds || 4);
-  const scrubSec = Math.max(0, stats.rewindScrubSeconds || 0);
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10 select-none">
@@ -108,36 +101,7 @@ export const HUD: React.FC<HUDProps> = ({
           </div>
         )}
 
-        {scrubbing && (
-          <div className="w-[min(92%,320px)] bg-slate-950/90 backdrop-blur-md border border-amber-400/40 rounded-2xl px-4 py-3 pointer-events-auto ui-interactive">
-            <div className="flex items-center justify-between text-[11px] text-amber-200 font-medium mb-1.5">
-              <span>Rewind</span>
-              <span className="font-mono tabular-nums">{scrubSec.toFixed(1)}s back</span>
-            </div>
-            <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden mb-2.5">
-              <div
-                className="h-full rounded-full bg-amber-400"
-                style={{ width: `${Math.min(100, (scrubSec / scrubMax) * 100)}%` }}
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={onCancelRewind}
-                className="flex-1 text-[11px] font-medium py-2 rounded-xl bg-slate-800 text-slate-200 border border-white/10"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onConfirmRewind}
-                className="flex-1 text-[11px] font-semibold py-2 rounded-xl bg-sky-400 text-slate-950"
-              >
-                Jump here
-              </button>
-            </div>
-          </div>
-        )}
-
-        {hint && !scrubbing && (
+        {hint && (
           <div className="bg-slate-950/70 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10 text-[10px] text-slate-200 font-medium max-w-[92%] text-center">
             {hint}
           </div>

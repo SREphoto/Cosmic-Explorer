@@ -156,8 +156,8 @@ export class Engine {
         getMoonCount: () => this.planets.filter((pl) => pl.isMoon).length,
         getSecretCount: () => this.planets.filter((pl) => pl.isSecret).length,
         getZoom: () => this.cameraZoom,
-        beginRewind: () => this.beginRewindScrub(),
-        confirmRewind: () => this.confirmRewindScrub(),
+        beginRewind: () => this.triggerRewind(true),
+        confirmRewind: () => this.triggerRewind(true),
       };
     }
   }
@@ -295,7 +295,10 @@ export class Engine {
 
   public triggerRewind(manual: boolean = false): boolean {
     if (this.mode !== 'PLAYING') return false;
-    if (this.stats.rewindChargesRemaining <= 0) return false;
+    if (this.stats.rewindChargesRemaining <= 0) {
+      if (manual) this.flashHint('No rewind charges');
+      return false;
+    }
 
     this.stats.rewindChargesRemaining--;
     this.isRewinding = true;
@@ -319,19 +322,15 @@ export class Engine {
     // Emit Rewind Chrono Sparkles
     this.particleSystem.emitLandingSparkles(this.player.x, this.player.y, '#fbbf24');
 
-    // Restore to safe state: either from history snapshot ~2.5s ago or last safe landed planet
-    if (this.lastSafeLandedPlanet) {
-      this.player.attachToPlanet(this.lastSafeLandedPlanet, -Math.PI / 2);
-    } else if (this.stateHistory.length > 0) {
-      const snap = this.stateHistory[0];
-      this.player.x = snap.x;
-      this.player.y = snap.y;
-      this.player.vx = 0;
-      this.player.vy = 0;
-      this.player.isAttached = snap.isAttached;
-      this.player.theta = snap.theta;
+    const safe = this.lastSafeLandedPlanet && this.planets.includes(this.lastSafeLandedPlanet)
+      ? this.lastSafeLandedPlanet
+      : this.planets.find((p) => !p.isMoon && !p.isSecret && p.type !== 'DARK') || this.planets[0];
+    if (safe) {
+      this.player.attachToPlanet(safe, -Math.PI / 2);
+      this.lastSafeLandedPlanet = safe;
     }
 
+    this.flashHint('Rewound to last safe planet');
     return true;
   }
 
@@ -379,10 +378,6 @@ export class Engine {
 
   public handleGesture(g: Gesture) {
     if (g.type === 'KEY_PAUSE') {
-      if (this.isScrubbing) {
-        this.cancelRewindScrub();
-        return;
-      }
       if (this.mode === 'PLAYING') this.pauseGame();
       else if (this.mode === 'PAUSED') this.resumeGame();
       return;
@@ -392,30 +387,6 @@ export class Engine {
 
     if (g.type === 'WALK') {
       this.player.walkDir = g.dir;
-      return;
-    }
-
-    if (g.type === 'SCRUB') {
-      if (this.isScrubbing) {
-        this.scrubT = Math.max(0, Math.min(1, this.scrubT + g.tDelta * 0.28));
-        this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
-      }
-      return;
-    }
-
-    if (this.isScrubbing) {
-      if (g.type === 'SWIPE' && g.dir === 'UP') {
-        this.cancelRewindScrub();
-        return;
-      }
-      if (g.type === 'TAP' || g.type === 'DOUBLE_TAP' || g.type === 'KEY_REWIND') {
-        this.confirmRewindScrub();
-        return;
-      }
-      if (g.type === 'SWIPE' && (g.dir === 'LEFT' || g.dir === 'RIGHT')) {
-        this.scrubT = Math.max(0, Math.min(1, this.scrubT + (g.dir === 'RIGHT' ? 0.12 : -0.12)));
-        this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
-      }
       return;
     }
 
@@ -486,7 +457,7 @@ export class Engine {
           this.triggerJetpackRescue();
           this.flashHint('Jetpack');
         } else if (g.dir === 'DOWN') {
-          this.beginRewindScrub();
+          this.triggerRewind(true);
         } else if (g.dir === 'LEFT') {
           this.triggerGadget();
           this.flashHint('Gadget');
@@ -503,7 +474,7 @@ export class Engine {
         this.triggerJetpackRescue();
         break;
       case 'KEY_REWIND':
-        this.beginRewindScrub();
+        this.triggerRewind(true);
         break;
       case 'KEY_GADGET':
         this.triggerGadget();
@@ -569,96 +540,16 @@ export class Engine {
   }
 
   public beginRewindScrub() {
-    if (this.stats.rewindChargesRemaining <= 0) {
-      this.flashHint('No rewind charges');
-      return;
-    }
-    if (this.stateHistory.length < 10) {
-      this.triggerRewind(true);
-      return;
-    }
-    this.liveBeforeScrub = {
-      x: this.player.x,
-      y: this.player.y,
-      vx: this.player.vx,
-      vy: this.player.vy,
-      theta: this.player.theta,
-      isAttached: this.player.isAttached,
-      planetId: this.player.currentPlanet?.id || null,
-      voidY: this.voidY,
-      time: performance.now()
-    };
-    this.isScrubbing = true;
-    this.scrubT = 0.4;
-    this.stats.isRewindScrubbing = true;
-    this.stats.rewindMaxSeconds = Math.min(4, this.stateHistory.length / 60);
-    this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
-    this.flashHint('Drag to choose how far · tap Jump here');
-    audioEngine.playClockTick();
+    this.triggerRewind(true);
   }
 
   public confirmRewindScrub() {
-    if (!this.isScrubbing) return;
-    this.applyScrubPreview();
-    const idx = Math.round(this.scrubT * (this.stateHistory.length - 1));
-    const snap = this.stateHistory[Math.max(0, Math.min(this.stateHistory.length - 1, idx))];
-    this.stats.rewindChargesRemaining--;
-    this.isRewinding = true;
-    this.player.isRewinding = true;
-    this.rewindTimer = 0.55;
-    this.voidY = snap.voidY + 280;
-    this.freezeTimer = 0;
-    this.freezeRatio = 0;
-    this.darkPlanetStayTimer = 0;
-    this.player.petrificationRatio = 0;
-    this.player.isPetrified = false;
-    if (snap.planetId) {
-      const planet = this.planets.find((p) => p.id === snap.planetId);
-      if (planet) {
-        this.player.attachToPlanet(planet, snap.theta);
-        this.lastSafeLandedPlanet = planet;
-      }
-    }
-    this.particleSystem.emitLandingSparkles(this.player.x, this.player.y, '#fbbf24');
-    this.renderSystem.triggerScreenShake(10, 0.28);
-    audioEngine.playRewindSound();
-    this.isScrubbing = false;
-    this.stats.isRewindScrubbing = false;
-    this.liveBeforeScrub = null;
-    this.flashHint('Rewound');
+    this.triggerRewind(true);
   }
 
   public cancelRewindScrub() {
-    if (!this.isScrubbing) return;
-    const live = this.liveBeforeScrub;
-    if (live) {
-      this.player.x = live.x;
-      this.player.y = live.y;
-      this.player.vx = live.vx;
-      this.player.vy = live.vy;
-      this.player.theta = live.theta;
-      this.voidY = live.voidY;
-      if (live.isAttached && live.planetId) {
-        const planet = this.planets.find((p) => p.id === live.planetId);
-        if (planet) this.player.attachToPlanet(planet, live.theta);
-      }
-    }
     this.isScrubbing = false;
     this.stats.isRewindScrubbing = false;
-    this.liveBeforeScrub = null;
-    this.flashHint('Rewind cancelled');
-  }
-
-  private applyScrubPreview() {
-    if (this.stateHistory.length === 0) return;
-    const idx = Math.round(this.scrubT * (this.stateHistory.length - 1));
-    const snap = this.stateHistory[Math.max(0, Math.min(this.stateHistory.length - 1, idx))];
-    this.player.x = snap.x;
-    this.player.y = snap.y;
-    this.player.vx = 0;
-    this.player.vy = 0;
-    this.player.theta = snap.theta;
-    this.stats.rewindScrubSeconds = (1 - this.scrubT) * (this.stats.rewindMaxSeconds || 4);
   }
 
   public tryDigAt(wx: number, wy: number) {
@@ -1004,17 +895,6 @@ export class Engine {
     this.updateMoonOrbits(dt);
     this.revealNearbySecrets();
 
-    if (this.isScrubbing) {
-      this.applyScrubPreview();
-      const targetCamX = this.player.x - this.canvas.width / 2;
-      const targetCamY = this.player.y - this.canvas.height / 2;
-      this.cameraX += (targetCamX - this.cameraX) * Math.min(1, 10 * dt);
-      this.cameraY += (targetCamY - this.cameraY) * Math.min(1, 10 * dt);
-      this.stats.isRewindScrubbing = true;
-      if (this.onStatsUpdate) this.onStatsUpdate(this.stats);
-      return;
-    }
-
     // 1. Update Player & Hold-to-Charge Jump Strength
     if (this.player.isAttached && this.player.isCharging) {
       this.player.chargeRatio = Math.min(1.0, this.player.chargeRatio + dt / PHYSICS_CONFIG.CHARGE_TIME_MAX);
@@ -1312,6 +1192,15 @@ export class Engine {
         this.freezeTimer += dt * freezeRate;
         this.freezeRatio = Math.min(1.0, this.freezeTimer / 2.5);
 
+        if (this.freezeRatio > 0.08 && Math.random() < 0.28) {
+          this.particleSystem.emitFreezeCrystals(this.player.x, this.player.y, this.freezeRatio);
+        }
+        if (this.freezeRatio > 0.15) {
+          const stiff = 1 - this.freezeRatio * 0.45;
+          this.player.vx *= Math.pow(stiff, dt * 4);
+          this.player.vy *= Math.pow(stiff, dt * 4);
+        }
+
         if (Math.random() < 0.12) {
           audioEngine.playFreezeWarning();
           HapticManager.triggerFreezeShiver();
@@ -1437,7 +1326,9 @@ export class Engine {
   }
 
   private onLandOnPlanet(planet: Planet, contactAngle: number) {
-    this.lastSafeLandedPlanet = planet;
+    if (!planet.isMoon && planet.type !== 'DARK' && !planet.isDark) {
+      this.lastSafeLandedPlanet = planet;
+    }
     this.player.attachToPlanet(planet, contactAngle);
     audioEngine.playLand();
 
@@ -1673,14 +1564,6 @@ export class Engine {
     const prediction = PhysicsSystem.predictTrajectory(this.player, this.planets);
     const currentLevelForRender = ProceduralGenerator.getLevelForPlanetIndex(Math.max(1, this.stats.planetsLandedCount || 1));
 
-    const ghosts = this.isScrubbing
-      ? this.stateHistory.filter((_, i) => i % 14 === 0).map((h, i, arr) => ({
-          x: h.x,
-          y: h.y,
-          alpha: 0.12 + (i / Math.max(1, arr.length)) * 0.35
-        }))
-      : [];
-
     this.renderSystem.render(
       this.ctx,
       this.canvas.width,
@@ -1701,8 +1584,7 @@ export class Engine {
       this.stats.voidDangerRatio || 0,
       this.sectorFlashTimer,
       currentLevelForRender,
-      this.cameraZoom,
-      ghosts
+      this.cameraZoom
     );
 
     // Render ParticleSystem overlay

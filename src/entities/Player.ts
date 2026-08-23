@@ -445,9 +445,10 @@ export class Player {
     // Character Rendering
     ctx.save();
     
-    // Freezing shiver jitter
-    const shiverX = freezeRatio > 0.05 ? (Math.random() - 0.5) * 2.5 * freezeRatio : 0;
-    const shiverY = freezeRatio > 0.05 ? (Math.random() - 0.5) * 2.5 * freezeRatio : 0;
+    // Freezing shiver — rhythmic, not random jitter
+    const shiverAmp = freezeRatio * freezeRatio;
+    const shiverX = freezeRatio > 0.04 ? Math.sin(this.haloRotation * 28) * (1.4 + shiverAmp * 4.2) : 0;
+    const shiverY = freezeRatio > 0.04 ? Math.cos(this.haloRotation * 37) * (0.9 + shiverAmp * 3.1) : 0;
     ctx.translate(renderX + shiverX, renderY + shiverY);
 
     // Calculate facing rotation
@@ -685,40 +686,150 @@ export class Player {
   }
 
   private drawIceCrystalEncasement(ctx: CanvasRenderingContext2D, freezeRatio: number) {
+    const t = Math.max(0, Math.min(1, freezeRatio));
+    const pulse = 0.62 + Math.sin(this.haloRotation * 7.2) * 0.38;
     ctx.save();
 
-    const iceAlpha = Math.min(0.75, freezeRatio * 0.8);
-    const iceGrad = ctx.createLinearGradient(0, -32, 0, 32);
-    iceGrad.addColorStop(0, `rgba(224, 242, 254, ${iceAlpha})`);
-    iceGrad.addColorStop(0.5, `rgba(56, 189, 248, ${iceAlpha * 0.7})`);
-    iceGrad.addColorStop(1, `rgba(186, 230, 253, ${iceAlpha * 0.9})`);
-
-    ctx.fillStyle = iceGrad;
-    ctx.strokeStyle = `rgba(240, 249, 255, ${Math.min(1.0, freezeRatio + 0.2)})`;
-    ctx.lineWidth = 2.2;
-    ctx.shadowColor = '#38bdf8';
-    ctx.shadowBlur = 12 * freezeRatio;
-
+    // Ice-blue body tint that climbs with freeze
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = `rgba(56, 189, 248, ${0.12 + t * 0.55})`;
     ctx.beginPath();
-    ctx.moveTo(0, -32);
-    ctx.lineTo(16, -16);
-    ctx.lineTo(18, 14);
-    ctx.lineTo(10, 30);
-    ctx.lineTo(0, 34);
-    ctx.lineTo(-10, 30);
-    ctx.lineTo(-18, 14);
-    ctx.lineTo(-16, -16);
-    ctx.closePath();
+    ctx.ellipse(0, -4, 18 + t * 8, 28 + t * 10, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.stroke();
+    if (t > 0.35) {
+      ctx.fillStyle = `rgba(224, 242, 254, ${(t - 0.35) * 0.55})`;
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1.2;
+    // Cold rim light
+    ctx.strokeStyle = `rgba(186, 230, 253, ${0.25 + t * 0.7})`;
+    ctx.lineWidth = 1.4 + t * 1.6;
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 10 + t * 16 * pulse;
     ctx.beginPath();
-    ctx.moveTo(0, -32); ctx.lineTo(0, 34);
-    ctx.moveTo(-16, -16); ctx.lineTo(16, -16);
-    ctx.moveTo(-18, 14); ctx.lineTo(18, 14);
+    ctx.ellipse(0, -4, 17 + t * 6, 26 + t * 8, 0, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Frost climbing from the boots toward the helmet
+    const climb = 32 - 64 * t;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-30, climb, 60, 70);
+    ctx.clip();
+    ctx.strokeStyle = `rgba(240, 249, 255, ${0.28 + t * 0.62})`;
+    ctx.lineWidth = 1.05;
+    for (let i = 0; i < 9; i++) {
+      const x = -18 + i * 4.5;
+      const wobble = Math.sin(this.haloRotation * 2.4 + i * 0.9) * 3.2;
+      ctx.beginPath();
+      ctx.moveTo(x, 32);
+      ctx.quadraticCurveTo(x + wobble, 6, x + (i % 2 ? 4 : -4), -22);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, 18);
+      ctx.lineTo(x + (i % 2 ? 6 : -6), 10);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Faceted ice shards growing out of the silhouette
+    const shards = 10;
+    for (let i = 0; i < shards; i++) {
+      const grow = Math.max(0, t - i * 0.06);
+      if (grow <= 0) continue;
+      const ang = (i / shards) * Math.PI * 2 + t * 0.25 + (i % 2) * 0.18;
+      const base = 16 + t * 5;
+      const len = (9 + ((i * 13) % 11)) * (0.25 + grow * 1.15);
+      const w = 3.2 + grow * 4.4;
+      const x0 = Math.cos(ang) * base;
+      const y0 = Math.sin(ang) * base - 4;
+      ctx.save();
+      ctx.translate(x0, y0);
+      ctx.rotate(ang + Math.PI / 2);
+      ctx.fillStyle = i % 2 === 0 ? `rgba(224, 242, 254, ${0.35 + grow * 0.55})` : `rgba(125, 211, 252, ${0.3 + grow * 0.5})`;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 + grow * 0.5})`;
+      ctx.lineWidth = 0.9;
+      ctx.shadowColor = '#7dd3fc';
+      ctx.shadowBlur = 8 * grow;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(w * 0.42, -len * 0.38);
+      ctx.lineTo(0, -len);
+      ctx.lineTo(-w * 0.42, -len * 0.38);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Solid ice shell — character locked in a crystal
+    if (t > 0.42) {
+      const shell = (t - 0.42) / 0.58;
+      ctx.save();
+      ctx.fillStyle = `rgba(186, 230, 253, ${0.12 + shell * 0.42})`;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 + shell * 0.45})`;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#e0f2fe';
+      ctx.shadowBlur = 16 * shell * pulse;
+      ctx.beginPath();
+      const pts = 6;
+      for (let i = 0; i < pts; i++) {
+        const a = (i / pts) * Math.PI * 2 - Math.PI / 2;
+        const rx = (22 + shell * 10) * (i % 2 === 0 ? 1 : 0.82);
+        const ry = (30 + shell * 12) * (i % 2 === 0 ? 1 : 0.86);
+        const x = Math.cos(a) * rx;
+        const y = Math.sin(a) * ry - 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.22 + shell * 0.45})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-10, -14);
+      ctx.lineTo(8, 6);
+      ctx.moveTo(6, -20);
+      ctx.lineTo(-4, 22);
+      ctx.moveTo(-6, 8);
+      ctx.lineTo(12, 16);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Diamond sparkles on the ice
+    if (t > 0.18) {
+      for (let s = 0; s < 6; s++) {
+        const a = this.haloRotation * 1.7 + s * 1.05;
+        const rad = 10 + (s % 3) * 7;
+        const sx = Math.cos(a) * rad;
+        const sy = Math.sin(a * 1.3) * (rad + 4) - 4;
+        const tw = 0.35 + Math.abs(Math.sin(this.haloRotation * 5 + s)) * 0.65;
+        ctx.fillStyle = `rgba(255, 255, 255, ${tw * t})`;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 3.2);
+        ctx.lineTo(sx + 1.6, sy);
+        ctx.lineTo(sx, sy + 3.2);
+        ctx.lineTo(sx - 1.6, sy);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Breath vapor
+    if (t > 0.16) {
+      for (let p = 0; p < 4; p++) {
+        const drift = (this.haloRotation * 0.55 + p * 0.33) % 1;
+        ctx.fillStyle = `rgba(224, 242, 254, ${(1 - drift) * 0.4 * t})`;
+        ctx.beginPath();
+        ctx.arc(11 + drift * 16, -8 - drift * 10 - p * 2.2, 1.6 + drift * 3.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     ctx.restore();
   }

@@ -124,7 +124,7 @@ export class ProceduralGenerator {
       const isSun = !isGoalCheckpoint && !isDark && chance(i, 4, 0.12);
       const isRingedGiant = !isGoalCheckpoint && !isDark && !isSun && chance(i, 5, 0.16);
       const isAntimatter = !isGoalCheckpoint && !isDark && level.levelNumber >= 5 && chance(i, 6, 0.12);
-      const isMoonlet = !isGoalCheckpoint && !isDark && !isSun && chance(i, 7, 0.12);
+      const isMoonlet = !isGoalCheckpoint && !isDark && !isSun && chance(i, 7, 0.03);
       const isStormGiant = !isGoalCheckpoint && !isDark && !isSun && !isMoonlet && level.levelNumber >= 3 && chance(i, 8, 0.10);
 
       let type: PlanetType = level.featuredTypes[Math.floor(rand01(i, 9) * level.featuredTypes.length)];
@@ -134,7 +134,7 @@ export class ProceduralGenerator {
       else if (isSun) type = 'SUN';
       else if (isStormGiant) type = 'STORM';
       else if (isRingedGiant) type = 'RINGED_GIANT';
-      else if (isMoonlet) type = 'MOON';
+      else if (isMoonlet) type = 'ASTEROID';
 
       const palette = paletteForPlanet(type);
       let color = palette.color;
@@ -224,13 +224,23 @@ export class ProceduralGenerator {
         );
       }
 
-      const moonCount = isGoalCheckpoint ? 2 : chance(i, 30, 0.55) ? 1 : chance(i, 31, 0.2) ? 2 : 0;
+      const isLargeHost =
+        isGoalCheckpoint ||
+        radius >= 125 ||
+        type === 'RINGED_GIANT' ||
+        type === 'SUN' ||
+        type === 'STORM' ||
+        type === 'CLOUD' ||
+        type === 'AURORA' ||
+        isCelestialOrSun(type);
+
+      const moonCount = isLargeHost ? 1 : 0;
       for (let m = 0; m < moonCount; m++) {
         planets.push(this.spawnMoon(planet, i, m));
       }
 
-      // Secret side-path every 7 worlds, reachable by riding a long-orbit moon
-      if (!isGoalCheckpoint && i >= 6 && i % 7 === 0) {
+      // Secret side-path off large worlds — ride the far moon to reach it
+      if (isLargeHost && !isGoalCheckpoint && i >= 5 && i % 6 === 0) {
         const side = chance(i, 40, 0.5) ? 1 : -1;
         const secret = this.spawnSecretPlanet(planet, i, side);
         planets.push(secret);
@@ -252,7 +262,7 @@ export class ProceduralGenerator {
   }
 
   private spawnMoon(parent: Planet, index: number, slot: number): Planet {
-    const orbitRadius = parent.radius + 68 + randRange(index, 50 + slot, 24, 90);
+    const orbitRadius = Math.max(parent.radius + 72, this.screenWidth * 0.44) + randRange(index, 50 + slot, 0, 18);
     const moonRadius = 18 + randRange(index, 52 + slot, 8, 22);
     const pal = paletteForPlanet('MOON');
     return new Planet({
@@ -284,7 +294,7 @@ export class ProceduralGenerator {
     const dx = secret.x - parent.x;
     const dy = secret.y - parent.y;
     const dist = Math.hypot(dx, dy);
-    const orbitRadius = Math.max(parent.radius + 90, dist * 0.52);
+    const orbitRadius = Math.max(parent.radius + 80, this.screenWidth * 0.44, dist * 0.62);
     const pal = paletteForPlanet('MOON');
     return new Planet({
       id: `bridge_moon_${index}`,
@@ -316,9 +326,10 @@ export class ProceduralGenerator {
     const type = pick(index, 41, ['CRYSTAL', 'NEBULA', 'AURORA', 'ANTIMATTER', 'CELESTIAL_SANCTUARY'] as PlanetType[]);
     const pal = paletteForPlanet(type);
     const radius = 54 + randRange(index, 42, 0, 28);
+    const sideGap = Math.max(this.screenWidth * 0.92, anchor.radius + this.screenWidth * 0.7) + randRange(index, 43, 20, 70);
     return new Planet({
       id: `secret_${index}`,
-      x: anchor.x + side * (360 + randRange(index, 43, 0, 90)),
+      x: anchor.x + side * sideGap,
       y: anchor.y - 20 - randRange(index, 44, 0, 50),
       radius,
       mass: Math.pow(radius / 70, 1.75) * 1.1,

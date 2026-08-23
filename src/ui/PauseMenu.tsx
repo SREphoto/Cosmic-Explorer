@@ -19,7 +19,7 @@ const GESTURES = [
   { keys: 'Hold', action: 'Charge jump' },
   { keys: 'Swipe up / W', action: 'Jetpack' },
   { keys: 'Tap near planet', action: 'Ricochet' },
-  { keys: 'Swipe down / R', action: 'Rewind, then scrub' },
+  { keys: 'Swipe down / R', action: 'Rewind to last safe planet' },
   { keys: 'Double-tap / E', action: 'Explore & dig' },
   { keys: 'Swipe left / G', action: 'Gadget' },
   { keys: 'Swipe right', action: 'Strafe boost' },

@@ -95,6 +95,7 @@ export class RenderSystem {
   private voidParticles: { x: number; y: number; vx: number; vy: number; alpha: number; size: number; color: string }[] = [];
   private anomalyParticles: AnomalyParticle[] = [];
   private frostSpicules: FrostSpicule[] = [];
+  private freezePulse: number = 0;
   private shakeIntensity: number = 0;
   private shakeTimer: number = 0;
   private bgImage: HTMLImageElement | null = null;
@@ -312,11 +313,10 @@ export class RenderSystem {
     voidDangerRatio: number = 0,
     sectorFlashTimer: number = 0,
     currentLevel?: LevelBiomeInfo,
-    cameraZoom: number = 1,
-    rewindGhosts: { x: number; y: number; alpha: number }[] = []
+    cameraZoom: number = 1
   ) {
-    // Screen shake calculation
     ctx.save();
+    this.freezePulse += dt;
     if (this.shakeTimer > 0) {
       this.shakeTimer -= dt;
       const offsetX = (Math.random() - 0.5) * this.shakeIntensity;
@@ -566,21 +566,6 @@ export class RenderSystem {
 
     // 8. Player (Animated little boy with waving red scarf, running stride, rocket flames)
     player.draw(ctx, cameraX, cameraY, freezeRatio);
-
-    if (rewindGhosts.length > 0) {
-      ctx.save();
-      for (const g of rewindGhosts) {
-        ctx.globalAlpha = g.alpha;
-        ctx.fillStyle = '#fde68a';
-        ctx.beginPath();
-        ctx.arc(g.x - cameraX, g.y - cameraY, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(251, 191, 36, 0.8)';
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
 
     // 8b. Hold-to-Charge Jump Strength Meter Ring
     if (player.isAttached && player.isCharging) {
@@ -880,116 +865,180 @@ export class RenderSystem {
     if (freezeRatio <= 0) return;
 
     ctx.save();
-    const now = Date.now() * 0.003;
-
-    // 1. Multi-Stop Deep Cyan / Crystal White Radial Frost Vignette
+    const t = Math.max(0, Math.min(1, freezeRatio));
+    const now = this.freezePulse;
+    const pulse = 0.72 + Math.sin(now * 7) * 0.28;
     const minDim = Math.min(width, height);
     const maxDim = Math.max(width, height);
-    const safeRadius = minDim * (0.65 - freezeRatio * 0.45);
+
+    ctx.fillStyle = `rgba(8, 47, 73, ${t * 0.28})`;
+    ctx.fillRect(0, 0, width, height);
+
+    const safeRadius = minDim * (0.74 - t * 0.5);
     const frostGrad = ctx.createRadialGradient(
-      width / 2, height / 2, safeRadius,
-      width / 2, height / 2, maxDim * 0.85
+      width / 2, height / 2, Math.max(8, safeRadius),
+      width / 2, height / 2, maxDim * 0.86
     );
     frostGrad.addColorStop(0, 'rgba(186, 230, 253, 0)');
-    frostGrad.addColorStop(0.3, `rgba(56, 189, 248, ${Math.min(0.55, freezeRatio * 0.5)})`);
-    frostGrad.addColorStop(0.65, `rgba(14, 165, 233, ${Math.min(0.82, freezeRatio * 0.8)})`);
-    frostGrad.addColorStop(0.9, `rgba(224, 242, 254, ${Math.min(0.96, freezeRatio * 0.95)})`);
-    frostGrad.addColorStop(1, `rgba(240, 249, 255, ${Math.min(1.0, freezeRatio * 0.98)})`);
-
+    frostGrad.addColorStop(0.32, `rgba(56, 189, 248, ${Math.min(0.38, t * 0.34)})`);
+    frostGrad.addColorStop(0.68, `rgba(14, 165, 233, ${Math.min(0.7, t * 0.66)})`);
+    frostGrad.addColorStop(0.9, `rgba(224, 242, 254, ${Math.min(0.92, t * 0.88)})`);
+    frostGrad.addColorStop(1, `rgba(255, 255, 255, ${Math.min(0.98, t * 0.96)})`);
     ctx.fillStyle = frostGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Procedural Crystalline Frost Spicules growing inward from screen perimeter
-    const activeSpicules = Math.min(this.frostSpicules.length, Math.floor(this.frostSpicules.length * (freezeRatio * 1.3)));
-    
+    const activeSpicules = Math.min(this.frostSpicules.length, Math.floor(this.frostSpicules.length * (0.28 + t * 1.05)));
     ctx.save();
-    ctx.shadowColor = '#bae6fd';
-    ctx.shadowBlur = 10;
-
+    ctx.shadowColor = '#e0f2fe';
+    ctx.shadowBlur = 8;
     for (let i = 0; i < activeSpicules; i++) {
       const sp = this.frostSpicules[i];
-      const startX = width / 2 + Math.cos(sp.angle) * (width * 0.52);
-      const startY = height / 2 + Math.sin(sp.angle) * (height * 0.52);
-      const currentLength = sp.length * (freezeRatio * 1.5) * sp.depth;
+      const grow = Math.min(1, t * 1.35) * sp.depth;
+      const startX = width / 2 + Math.cos(sp.angle) * (width * 0.54);
+      const startY = height / 2 + Math.sin(sp.angle) * (height * 0.54);
+      const currentLength = sp.length * (0.85 + t * 1.15) * grow;
       const endX = startX - Math.cos(sp.angle) * currentLength;
       const endY = startY - Math.sin(sp.angle) * currentLength;
 
-      // Main Crystal Needle
-      ctx.strokeStyle = `rgba(240, 249, 255, ${Math.min(0.95, freezeRatio * 1.1)})`;
-      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(0.95, 0.25 + t * 0.8)})`;
+      ctx.lineWidth = 1.6 + t;
       ctx.beginPath();
       ctx.moveTo(startX, startY);
       ctx.lineTo(endX, endY);
       ctx.stroke();
 
-      // Crystal Side Facets / Dendrite Branches
-      if (freezeRatio > 0.35) {
-        ctx.strokeStyle = `rgba(186, 230, 253, ${Math.min(0.85, freezeRatio * 0.9)})`;
-        ctx.lineWidth = 1.4;
+      if (t > 0.18) {
+        ctx.strokeStyle = `rgba(186, 230, 253, ${Math.min(0.9, t * 0.95)})`;
+        ctx.lineWidth = 1.1;
         sp.branches.forEach((b) => {
           const bx = startX - Math.cos(sp.angle) * (currentLength * b.offset);
           const by = startY - Math.sin(sp.angle) * (currentLength * b.offset);
           const branchAngle = sp.angle + Math.PI + b.branchAngle;
-          const bEndX = bx + Math.cos(branchAngle) * (b.branchLength * freezeRatio);
-          const bEndY = by + Math.sin(branchAngle) * (b.branchLength * freezeRatio);
-
+          const bLen = b.branchLength * (0.4 + t * 0.9);
           ctx.beginPath();
           ctx.moveTo(bx, by);
-          ctx.lineTo(bEndX, bEndY);
+          ctx.lineTo(bx + Math.cos(branchAngle) * bLen, by + Math.sin(branchAngle) * bLen);
           ctx.stroke();
+          if (t > 0.55) {
+            const nx = bx + Math.cos(branchAngle) * bLen * 0.55;
+            const ny = by + Math.sin(branchAngle) * bLen * 0.55;
+            ctx.beginPath();
+            ctx.moveTo(nx, ny);
+            ctx.lineTo(nx + Math.cos(branchAngle + 0.8) * bLen * 0.4, ny + Math.sin(branchAngle + 0.8) * bLen * 0.4);
+            ctx.stroke();
+          }
         });
       }
     }
     ctx.restore();
 
-    // 3. Shivering Ice Crystals & Diamond Dust Floating
+    const corners: Array<[number, number, number]> = [
+      [0, 0, 0.35],
+      [width, 0, 0.55],
+      [0, height, 0.8],
+      [width, height, 1.05],
+    ];
     ctx.save();
-    const dustCount = Math.floor(40 * freezeRatio);
-    for (let d = 0; d < dustCount; d++) {
-      const dx = (d * 73 + now * 40) % width;
-      const dy = (d * 57 + Math.sin(now * 3 + d) * 20 + now * 25) % height;
-      const dSize = 1.2 + (d % 3) * 0.8;
-      const dAlpha = 0.4 + Math.sin(now * 5 + d) * 0.35;
+    corners.forEach(([cx, cy, phase], ci) => {
+      const bloom = Math.max(0, Math.min(1, (t - 0.04) * 1.25 - ci * 0.04));
+      if (bloom <= 0) return;
+      const inwardX = cx === 0 ? 1 : -1;
+      const inwardY = cy === 0 ? 1 : -1;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.25 + bloom * 0.7})`;
+      ctx.lineWidth = 1.2;
+      ctx.shadowColor = '#bae6fd';
+      ctx.shadowBlur = 6;
+      for (let f = 0; f < 7; f++) {
+        const ang = phase + f * 0.22;
+        const len = (48 + f * 14) * bloom * (0.7 + t * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        const mx = cx + inwardX * Math.cos(ang) * len * 0.55;
+        const my = cy + inwardY * Math.sin(ang) * len * 0.55;
+        ctx.quadraticCurveTo(mx, my, cx + inwardX * Math.cos(ang) * len, cy + inwardY * Math.sin(ang) * len);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(mx, my);
+        ctx.lineTo(mx + inwardX * 12 * bloom, my - inwardY * 8 * bloom);
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
 
+    const flakeCount = Math.floor(8 + 16 * t);
+    ctx.save();
+    for (let f = 0; f < flakeCount; f++) {
+      const fx = (f * 97 + now * 28) % width;
+      const fy = (f * 53 + Math.sin(now * 1.4 + f) * 22 + now * 18) % height;
+      const size = 3.5 + (f % 4);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.18 + t * 0.45})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let arm = 0; arm < 6; arm++) {
+        const a = (arm * Math.PI) / 3;
+        ctx.moveTo(fx, fy);
+        ctx.lineTo(fx + Math.cos(a) * size, fy + Math.sin(a) * size);
+      }
+      ctx.stroke();
+    }
+    const dustCount = Math.floor(24 + 46 * t);
+    for (let d = 0; d < dustCount; d++) {
+      const dx = (d * 73 + now * 55) % width;
+      const dy = (d * 57 + Math.sin(now * 2.2 + d) * 18 + now * 32) % height;
+      const dSize = 1.1 + (d % 4) * 0.7;
       ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = dAlpha * freezeRatio;
+      ctx.globalAlpha = (0.25 + Math.sin(now * 5 + d) * 0.3) * t;
       ctx.beginPath();
       ctx.arc(dx, dy, dSize, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
 
-    // 4. Freeze Warning Text Header with icy frost pulse
-    if (freezeRatio > 0.12) {
-      const shiver = Math.sin(now * 18) * 3;
-      const pulse = 1.0 + Math.sin(now * 8) * 0.05;
-
+    if (t > 0.62) {
+      const crack = (t - 0.62) / 0.38;
       ctx.save();
-      ctx.fillStyle = '#bae6fd';
-      ctx.shadowColor = '#0284c7';
-      ctx.shadowBlur = 16;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.25 + crack * 0.55})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(width * 0.18, height * 0.12);
+      ctx.lineTo(width * 0.42, height * 0.38);
+      ctx.lineTo(width * 0.36, height * 0.62);
+      ctx.lineTo(width * 0.55, height * 0.9);
+      ctx.moveTo(width * 0.78, height * 0.08);
+      ctx.lineTo(width * 0.62, height * 0.34);
+      ctx.lineTo(width * 0.8, height * 0.58);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (t > 0.1) {
+      const shiver = Math.sin(now * 16) * (2 + t * 4);
+      ctx.save();
+      ctx.fillStyle = t > 0.7 ? '#fee2e2' : '#e0f2fe';
+      ctx.shadowColor = t > 0.7 ? '#f43f5e' : '#0284c7';
+      ctx.shadowBlur = 18 * pulse;
       ctx.font = '900 13px system-ui, sans-serif';
       ctx.textAlign = 'center';
+      ctx.globalAlpha = 0.75 + pulse * 0.25;
       ctx.fillText(
-        '❄️ DEEP SPACE FREEZING! RETURN TO A PLANET ORBIT!',
+        t > 0.78 ? 'ICE ENCASEMENT — GET TO A PLANET!' : 'DEEP SPACE FREEZING',
         width / 2 + shiver,
         48
       );
 
-      // Percentage freeze meter bar
-      const barW = Math.min(220, width * 0.6);
-      const barH = 5;
+      const barW = Math.min(240, width * 0.62);
+      const barH = 6;
       const barX = (width - barW) / 2;
-      const barY = 56;
-
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+      const barY = 58;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
       ctx.fillRect(barX, barY, barW, barH);
-
       const fillGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
-      fillGrad.addColorStop(0, '#38bdf8');
+      fillGrad.addColorStop(0, '#7dd3fc');
+      fillGrad.addColorStop(0.55, '#38bdf8');
       fillGrad.addColorStop(1, '#f43f5e');
       ctx.fillStyle = fillGrad;
-      ctx.fillRect(barX, barY, barW * freezeRatio, barH);
+      ctx.fillRect(barX, barY, barW * t, barH);
       ctx.restore();
     }
 

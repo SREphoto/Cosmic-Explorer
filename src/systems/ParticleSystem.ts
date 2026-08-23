@@ -88,6 +88,26 @@ export class ParticleSystem {
     }
   }
 
+  public emitFreezeCrystals(x: number, y: number, intensity: number) {
+    const count = 2 + Math.floor(intensity * 5);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 18 + Math.random() * 46;
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 18,
+        y: y + (Math.random() - 0.5) * 22,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 12,
+        color: Math.random() < 0.45 ? '#e0f2fe' : Math.random() < 0.5 ? '#7dd3fc' : '#ffffff',
+        size: Math.random() * 4.5 + 2,
+        alpha: 0.9,
+        maxLife: 0.55 + intensity * 0.45,
+        life: 0,
+        shape: Math.random() < 0.55 ? 'STAR' : 'SPARK'
+      });
+    }
+  }
+
   public draw(ctx: CanvasRenderingContext2D, cameraX: number, cameraY: number) {
     this.particles.forEach((p) => {
       ctx.save();

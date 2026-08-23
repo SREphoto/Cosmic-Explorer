@@ -102,7 +102,6 @@ export default function App() {
       setStats({ ...newStats });
       if (inputManagerRef.current) {
         inputManagerRef.current.exploring = !!newStats.isExploring;
-        inputManagerRef.current.scrubbing = !!newStats.isRewindScrubbing;
       }
     };
 
@@ -503,8 +502,6 @@ export default function App() {
               cometTimer={engineRef.current.powerUpSystem.cometTimer}
               cometMaxTimer={engineRef.current.powerUpSystem.cometDurationMax}
               onPause={handlePauseGame}
-              onConfirmRewind={() => engineRef.current?.confirmRewindScrub()}
-              onCancelRewind={() => engineRef.current?.cancelRewindScrub()}
             />
 
             {/* Multiplayer 1v1 In-Game HUD Overlay (When in a live match) */}

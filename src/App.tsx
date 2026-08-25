@@ -16,6 +16,8 @@ import { PostRunSummaryModal } from './ui/PostRunSummaryModal';
 import { HUD } from './ui/HUD';
 import { PauseMenu } from './ui/PauseMenu';
 import { HomePlanetScreen } from './ui/HomePlanetScreen';
+import { MainMenu } from './ui/MainMenu';
+import { SimErrorBoundary } from './ui/SimErrorBoundary';
 import { QuestLogModal } from './ui/QuestLogModal';
 import { UpgradesModal } from './ui/UpgradesModal';
 import { WardrobeModal } from './ui/WardrobeModal';
@@ -469,8 +471,31 @@ export default function App() {
           className="w-full h-full block touch-none cursor-pointer"
         />
 
-        {/* 1. Home Screen — Planet Sovereignty simulation of your home world */}
+        {/* 1. Home Screen — Planet Sovereignty simulation of your home world.
+            Wrapped in an error boundary: any crash falls back to the classic
+            main menu instead of a blank screen. */}
         {gameMode === 'MENU' && (
+          <SimErrorBoundary
+            fallback={
+              <MainMenu
+                savedData={savedData}
+                onStartGame={() => handleStartGame()}
+                onOpenMultiplayer={() => setActiveModal('MULTIPLAYER')}
+                onOpenHomePlanet={() => setActiveModal('HOME_PLANET')}
+                onOpenWardrobe={() => setActiveModal('WARDROBE')}
+                onOpenUpgrades={() => setActiveModal('UPGRADES')}
+                onOpenAchievements={() => setActiveModal('ACHIEVEMENTS')}
+                onOpenQuests={() => setActiveModal('QUESTS')}
+                onOpenMedalChest={() => setActiveModal('MEDAL_CHEST')}
+                onOpenLogin={() => setShowLoginModal(true)}
+                onOpenDocs={() => setActiveModal('DOCS')}
+                onOpenTutorial={() => setActiveModal('ONBOARDING')}
+                onOpenMap={() => setActiveModal('MAP')}
+                onToggleAudio={handleToggleAudio}
+                onClaimDailyChallenge={handleClaimDailyChallenge}
+              />
+            }
+          >
           <HomePlanetScreen
             savedData={savedData}
             onStartGame={() => handleStartGame()}
@@ -492,6 +517,7 @@ export default function App() {
               }
             }}
           />
+          </SimErrorBoundary>
         )}
 
         {/* 2. HUD Game Overlay */}

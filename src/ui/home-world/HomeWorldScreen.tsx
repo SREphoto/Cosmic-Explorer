@@ -3,6 +3,7 @@ import { Star, Gem, Sparkles, Edit3, FileText, HelpCircle, User } from 'lucide-r
 import { UserSavedData } from '../../types/game';
 import { HomeWorldSaveState, PlanetLocationDef, SceneId } from '../../types/homeWorld';
 import { SCENE_DEFS, npcById, taskById, nextTaskAfter } from '../../core/HomeWorldData';
+import { NPC_PORTRAITS } from './portraits';
 import { StorageManager } from '../../core/Storage';
 import { audioEngine } from '../../core/AudioEngine';
 import { showToast } from '../Toast';
@@ -390,8 +391,16 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
           {dialogue && dialogueNpc && (
             <div className="mt-2 bg-slate-900/95 border border-slate-700 rounded-2xl p-3 shadow-xl animate-in fade-in duration-200">
               <div className="flex items-start gap-2.5">
-                <div className="w-11 h-11 rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center text-2xl shrink-0">
-                  {dialogueNpc.icon}
+                <div className="w-11 h-11 rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                  {NPC_PORTRAITS[dialogueNpc.id] ? (
+                    <img
+                      src={NPC_PORTRAITS[dialogueNpc.id]}
+                      alt={dialogueNpc.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    dialogueNpc.icon
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

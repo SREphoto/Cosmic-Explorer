@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { PLANET_LOCATIONS } from '../../core/HomeWorldData';
 import { PlanetLocationDef } from '../../types/homeWorld';
+import planetDiskUrl from '../../assets/art/home-planet-disk.png';
+import { getArtImage, artReady } from './art';
 
 const W = 640;
 const H = 560;
@@ -132,16 +134,27 @@ export const PlanetSphereView: React.FC<PlanetSphereViewProps> = ({
       ctx.arc(CX, CY, R * 1.32, 0, Math.PI * 2);
       ctx.fill();
 
-      // Planet body
-      const hi = lerpColor('#3fae7a', '#8a6b3f', pol);
-      const lo = lerpColor('#0d4531', '#33210f', pol);
-      const body = ctx.createRadialGradient(CX - R * 0.42, CY - R * 0.45, R * 0.12, CX, CY, R);
-      body.addColorStop(0, hi);
-      body.addColorStop(1, lo);
-      ctx.fillStyle = body;
-      ctx.beginPath();
-      ctx.arc(CX, CY, R, 0, Math.PI * 2);
-      ctx.fill();
+      // Planet body — generated painterly disc when available, procedural fallback otherwise
+      const planetArt = getArtImage(planetDiskUrl);
+      const hasArt = artReady(planetArt);
+      if (hasArt) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(CX, CY, R, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(planetArt, CX - R, CY - R, R * 2, R * 2);
+        ctx.restore();
+      } else {
+        const hi = lerpColor('#3fae7a', '#8a6b3f', pol);
+        const lo = lerpColor('#0d4531', '#33210f', pol);
+        const body = ctx.createRadialGradient(CX - R * 0.42, CY - R * 0.45, R * 0.12, CX, CY, R);
+        body.addColorStop(0, hi);
+        body.addColorStop(1, lo);
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(CX, CY, R, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Clip surface details to the disc
       ctx.save();
@@ -149,6 +162,14 @@ export const PlanetSphereView: React.FC<PlanetSphereViewProps> = ({
       ctx.arc(CX, CY, R, 0, Math.PI * 2);
       ctx.clip();
 
+      if (hasArt) {
+        // Soft inner-rim depth over the painted disc
+        const rim = ctx.createRadialGradient(CX, CY, R * 0.72, CX, CY, R);
+        rim.addColorStop(0, 'transparent');
+        rim.addColorStop(1, 'rgba(2,6,23,0.42)');
+        ctx.fillStyle = rim;
+        ctx.fillRect(CX - R, CY - R, R * 2, R * 2);
+      } else {
       // Terrain patches rotating with the sphere
       for (const f of FEATURES) {
         const p = project(f.lat, f.lon);
@@ -185,6 +206,7 @@ export const PlanetSphereView: React.FC<PlanetSphereViewProps> = ({
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+      } // end procedural surface fallback
 
       // Terminator shading
       const shade = ctx.createRadialGradient(CX + R * 0.6, CY + R * 0.6, R * 0.2, CX, CY, R * 1.05);

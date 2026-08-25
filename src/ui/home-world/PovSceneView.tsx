@@ -5,6 +5,21 @@ import { SCENE_DEFS, npcById } from '../../core/HomeWorldData';
 
 const VW = 640;
 const VH = 420;
+
+import streetBackdropUrl from '../../assets/art/scene-street-dusk.png';
+import { getArtImage, artReady } from './art';
+import { NPC_PORTRAITS } from './portraits';
+
+const DOOR_LABELS: Record<string, string> = {
+  shop: 'Supply Shop',
+  bank: 'Star Bank',
+  gym: 'Gravity Gym',
+  trophy: 'Medal Hall',
+  greenhouse: 'Greenhouse',
+  warehouse: 'Freight Depot',
+  hangar: 'Launch Hangar',
+  command: 'Command Post',
+};
 const GROUND_Y = 372;
 
 interface PovSceneViewProps {
@@ -151,6 +166,103 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
       }
     };
 
+    // Rounded-rect path helper (Safari-safe, no ctx.roundRect dependency)
+    const rr = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+
+    // Glowing AR-style door signage floating over the painted street
+    const drawHoloDoor = (x: number, y: number, w: number, h: number, icon: string, label: string, accent: string, t: number) => {
+      const bx = x + w / 2;
+      const pulse = 0.75 + 0.25 * Math.sin(t * 2.2 + x * 0.05);
+      // light beam from the doorway
+      const beam = ctx.createLinearGradient(0, y + h, 0, y - 34);
+      beam.addColorStop(0, 'rgba(56,189,248,0)');
+      beam.addColorStop(1, `rgba(56,189,248,${0.16 * pulse})`);
+      ctx.fillStyle = beam;
+      ctx.fillRect(bx - 16, y - 34, 32, h + 34);
+      // doorway glow line
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = 0.55 * pulse;
+      ctx.lineWidth = 2;
+      rr(x + 6, y + 4, w - 12, h - 8, 8);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      // glass plaque
+      const pw = Math.max(78, label.length * 6.4 + 40);
+      const px = bx - pw / 2;
+      const py = y - 30;
+      ctx.fillStyle = 'rgba(10,16,32,0.78)';
+      rr(px, py, pw, 26, 13);
+      ctx.fill();
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 1.2;
+      rr(px, py, pw, 26, 13);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon, px + 14, py + 14);
+      ctx.font = 'bold 9.5px Inter, sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(label.toUpperCase(), px + 24 + (pw - 34) / 2, py + 14);
+      ctx.textBaseline = 'alphabetic';
+    };
+
+    // Circular portrait badge for NPCs on the painted street
+    const drawNpcChip = (npcId: string, x: number, t: number, hasTask: boolean) => {
+      const npc = npcById(npcId);
+      const bob = Math.sin(t * 2 + x) * 3;
+      const cy = GROUND_Y - 46 + bob;
+      const url = NPC_PORTRAITS[npcId];
+      const img = url ? getArtImage(url) : null;
+      if (artReady(img)) {
+        if (hasTask) {
+          const pulse = 0.6 + 0.4 * Math.sin(t * 4);
+          ctx.strokeStyle = `rgba(251,191,36,${0.5 + 0.4 * pulse})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, cy, 27 + pulse * 3, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, cy, 24, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(img, x - 24, cy - 24, 48, 48);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(226,232,240,0.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, cy, 24, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        drawNpc(npcId, x, t, hasTask);
+        return;
+      }
+      // name tag
+      ctx.font = 'bold 9px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const tw = ctx.measureText(npc.name).width + 12;
+      ctx.fillStyle = 'rgba(10,16,32,0.75)';
+      rr(x - tw / 2, cy + 28, tw, 15, 7);
+      ctx.fill();
+      ctx.fillStyle = hasTask ? '#fcd34d' : '#cbd5e1';
+      ctx.fillText(npc.name, x, cy + 39);
+      if (hasTask) {
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('❗', x + 22, cy - 20);
+      }
+    };
+
     const drawInteriorProps = (id: SceneId, t: number) => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -256,10 +368,25 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
       cam.x = Math.max(0, Math.min(sc.width - VW, cam.x));
 
       ctx.clearRect(0, 0, VW, VH);
+
+      // Painted backdrop (screen space, slow parallax) for the street scene
+      if (sceneRef.current.kind === 'street') {
+        const backdrop = getArtImage(streetBackdropUrl);
+        if (artReady(backdrop)) {
+          const scale = VH / backdrop.naturalHeight;
+          const dw = Math.max(VW + 2, backdrop.naturalWidth * scale * 1.55);
+          const span = Math.max(1, sceneRef.current.width - VW);
+          const off = (Math.max(0, Math.min(span, cam.x)) / span) * (dw - VW);
+          ctx.drawImage(backdrop, -off, 0, dw, VH);
+        }
+      }
+
       ctx.save();
       ctx.translate(-cam.x, cam.y);
 
       if (sc.kind === 'street') {
+        const streetArtReady = artReady(getArtImage(streetBackdropUrl));
+        if (!streetArtReady) {
         // sky
         const sky = ctx.createLinearGradient(0, 0, 0, VH);
         sky.addColorStop(0, sc.palette.skyTop);
@@ -309,16 +436,22 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.fillRect(gx + 4, GROUND_Y + 18, 34, 7);
           ctx.fillRect(gx + 20, GROUND_Y + 32, 34, 7);
         }
+        } // end procedural street fallback
 
-        // building facades from door hotspots
+        // building markers: painted backdrops get holo-signage, fallback gets facades
         for (const hs of sc.hotspots) {
           if (hs.kind !== 'door' || !hs.to || hs.to === 'exit') continue;
           const target = SCENE_DEFS[hs.to as SceneId];
+          if (streetArtReady) {
+            drawHoloDoor(hs.x, hs.y, hs.w, hs.h, target.icon, DOOR_LABELS[hs.to] || target.name, sc.palette.accent, t);
+            continue;
+          }
           const style = FACADE_STYLES[hs.to] || FACADE_STYLES.shop;
           const isHangar = hs.to === 'hangar';
           drawFacade(hs.x, hs.w, isHangar ? 190 : 168, style, target.icon, true);
         }
 
+        if (!streetArtReady) {
         // lanterns
         for (let lx = 120; lx < sc.width; lx += 260) {
           if (lx < cam.x - 40 || lx > cam.x + VW + 40) continue;
@@ -340,6 +473,7 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.textAlign = 'center';
           ctx.fillText('🏮', lx, GROUND_Y - 66);
         }
+        } // end lanterns (procedural fallback only)
 
         // notice board
         for (const hs of sc.hotspots) {
@@ -368,10 +502,15 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.fillText('QUESTS', bx, hs.y + 76);
         }
 
-        // NPCs
+        // NPCs — portrait chips over painted art, stick figures in fallback
         for (const npcPos of sc.npcs) {
           if (npcPos.x < cam.x - 60 || npcPos.x > cam.x + VW + 60) continue;
-          drawNpc(npcPos.npcId, npcPos.x, t, taskNpcsRef.current.includes(npcPos.npcId));
+          const hasTask = taskNpcsRef.current.includes(npcPos.npcId);
+          if (streetArtReady) {
+            drawNpcChip(npcPos.npcId, npcPos.x, t, hasTask);
+          } else {
+            drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
+          }
         }
       } else {
         // ---- interior ----

@@ -13,6 +13,10 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      // Conservative syntax target so older mobile Safari can evaluate the bundle.
+      target: ['es2020', 'safari14'],
+    },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},

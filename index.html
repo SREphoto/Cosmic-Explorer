@@ -24,6 +24,51 @@
       .boot-fallback h1 { font-size: 20px; margin: 0; letter-spacing: 2px; }
       .boot-fallback p { font-size: 12px; color: #64748b; margin: 0; }
     </style>
+    <script>
+      /* Pre-module watchdog: classic scripts evaluate BEFORE the module graph,
+         so this can catch and report failures that happen while the module
+         bundle itself is loading/evaluating (which the in-React crash handler
+         can never see). After 7s without a React mount, it paints a visible
+         diagnostic report on any device. */
+      (function () {
+        var diag = [];
+        function push(s) { diag.push(s); if (diag.length > 14) diag.shift(); }
+        window.addEventListener('error', function (e) {
+          push('error: ' + (e.message || 'unknown') + (e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : ''));
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          push('rejection: ' + String(e && e.reason ? (e.reason.message || e.reason) : e));
+        });
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            if (!document.querySelector('.boot-fallback')) return; // React mounted fine
+            var scripts = document.querySelectorAll('script[type="module"][src]');
+            var scr = null;
+            for (var i = 0; i < scripts.length; i++) {
+              var s = scripts[i].getAttribute('src') || '';
+              if (s.indexOf('@vite') === -1 && s.indexOf('react-refresh') === -1) { scr = s; }
+            }
+            var src = scr || '(no module script found)';
+            var finish = function (extra) {
+              var box = document.createElement('pre');
+              box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;background:#0f172a;color:#fca5a5;border:1px solid #475569;border-radius:12px;padding:12px;font:11px/1.5 monospace;white-space:pre-wrap;word-break:break-word;z-index:9999;max-height:48vh;overflow:auto;';
+              box.textContent =
+                '⚠️ Boot watchdog — the game script did not start.\n' +
+                'Script: ' + src + '\n' + (extra || '') +
+                'Device: ' + navigator.userAgent + '\n' +
+                'Captured events:\n' + (diag.length ? diag.join('\n') : '  (none)') +
+                '\n\nPlease screenshot this and send it to the dev team.';
+              document.body.appendChild(box);
+            };
+            if (src && window.fetch) {
+              fetch(src, { method: 'HEAD' })
+                .then(function (r) { finish('Fetch: HTTP ' + r.status + ', ' + r.headers.get('content-type') + '\n'); })
+                .catch(function (err) { finish('Fetch FAILED: ' + err + '\n'); });
+            } else { finish(''); }
+          }, 7000);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root">

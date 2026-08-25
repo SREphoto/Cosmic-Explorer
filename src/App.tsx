@@ -15,7 +15,7 @@ import { GameOverModal } from './ui/GameOverModal';
 import { PostRunSummaryModal } from './ui/PostRunSummaryModal';
 import { HUD } from './ui/HUD';
 import { PauseMenu } from './ui/PauseMenu';
-import { MainMenu } from './ui/MainMenu';
+import { HomePlanetScreen } from './ui/HomePlanetScreen';
 import { QuestLogModal } from './ui/QuestLogModal';
 import { UpgradesModal } from './ui/UpgradesModal';
 import { WardrobeModal } from './ui/WardrobeModal';
@@ -469,13 +469,13 @@ export default function App() {
           className="w-full h-full block touch-none cursor-pointer"
         />
 
-        {/* 1. Main Menu Screen */}
+        {/* 1. Home Screen — Planet Sovereignty simulation of your home world */}
         {gameMode === 'MENU' && (
-          <MainMenu
+          <HomePlanetScreen
             savedData={savedData}
             onStartGame={() => handleStartGame()}
-            onOpenMultiplayer={() => setActiveModal('MULTIPLAYER')}
             onOpenHomePlanet={() => setActiveModal('HOME_PLANET')}
+            onOpenMultiplayer={() => setActiveModal('MULTIPLAYER')}
             onOpenWardrobe={() => setActiveModal('WARDROBE')}
             onOpenUpgrades={() => setActiveModal('UPGRADES')}
             onOpenAchievements={() => setActiveModal('ACHIEVEMENTS')}
@@ -485,8 +485,12 @@ export default function App() {
             onOpenDocs={() => setActiveModal('DOCS')}
             onOpenTutorial={() => setActiveModal('ONBOARDING')}
             onOpenMap={() => setActiveModal('MAP')}
-            onToggleAudio={handleToggleAudio}
-            onClaimDailyChallenge={handleClaimDailyChallenge}
+            onUpdateSavedData={(updated) => {
+              setSavedData(updated);
+              if (engineRef.current) {
+                engineRef.current.savedData = updated;
+              }
+            }}
           />
         )}
 

@@ -1,3 +1,5 @@
+import type { PlanetSimState } from './planetSim';
+
 export type GameMode = 'MENU' | 'PLAYING' | 'PAUSED' | 'GAMEOVER';
 
 export interface Vector2D {
@@ -858,6 +860,9 @@ export interface UserSavedData {
 
   // Home Planet Base & Sanctuary
   homePlanet?: HomePlanetData;
+
+  // Planet Sovereignty Simulation (home-screen planet sim)
+  planetSim?: PlanetSimState;
 
   // Military Ribbons & Service Medals Progression
   unlockedMedalIds?: string[];

@@ -1,3 +1,7 @@
+/* Tailwind v4 entry point — without this import no utility classes are
+   generated, and the whole game renders unstyled. */
+@import "tailwindcss";
+
 @keyframes modalSlideUp {
   from {
     opacity: 0;

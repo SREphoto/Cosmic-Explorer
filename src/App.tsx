@@ -45,6 +45,9 @@ export default function App() {
   const [savedData, setSavedData] = useState<UserSavedData>(() => StorageManager.loadData());
   const [currentUser, setCurrentUser] = useState<typeof auth.currentUser>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  // True once the player chose "Continue Offline" — the game then runs fully
+  // locally (localStorage saves) with no Firebase account attached.
+  const [offlineMode, setOfflineMode] = useState(false);
   const [levelVictoryData, setLevelVictoryData] = useState<LevelVictoryData | null>(null);
   const [activeModal, setActiveModal] = useState<
     'WARDROBE' | 'UPGRADES' | 'QUESTS' | 'ACHIEVEMENTS' | 'DOCS' | 'TUTORIAL' | 'ONBOARDING' | 'MAP' | 'MULTIPLAYER' | 'HOME_PLANET' | 'MEDAL_CHEST' | null
@@ -707,7 +710,7 @@ export default function App() {
         )}
 
         {/* Authentication Login Screen (Enforces user login before play) */}
-        {(!currentUser || showLoginModal) && (
+        {((!currentUser && !offlineMode) || showLoginModal) && (
           <LoginScreen
             onLoginSuccess={(mergedData, displayName) => {
               setSavedData(mergedData);
@@ -718,7 +721,17 @@ export default function App() {
               setShowLoginModal(false);
               showToast('SUCCESS', 'Starfleet Verification Confirmed', `Welcome Commander ${displayName}!`);
             }}
-            onClose={currentUser ? () => setShowLoginModal(false) : undefined}
+            onOfflineContinue={() => {
+              const localData = StorageManager.loadData();
+              setSavedData(localData);
+              if (engineRef.current) {
+                engineRef.current.savedData = localData;
+              }
+              setOfflineMode(true);
+              setShowLoginModal(false);
+              showToast('SUCCESS', 'Offline Mode Engaged', 'Playing without an account — progress saves on this device.');
+            }}
+            onClose={currentUser || offlineMode ? () => setShowLoginModal(false) : undefined}
           />
         )}
 

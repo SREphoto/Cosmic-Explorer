@@ -19,7 +19,8 @@ import {
   Swords,
   Layers,
   X,
-  Tv
+  Tv,
+  WifiOff
 } from 'lucide-react';
 import { FirebaseService } from '../core/firebase';
 import { StorageManager } from '../core/Storage';
@@ -35,11 +36,13 @@ import trophyBannerUrl from '../assets/images/trophy_badges_banner_1786696596962
 interface LoginScreenProps {
   onLoginSuccess: (userData: UserSavedData, userDisplayName: string) => void;
   onClose?: () => void;
+  /** Optional: lets the player skip login entirely and play offline (local saves only). */
+  onOfflineContinue?: () => void;
 }
 
 type ShowcaseTab = 'GAMEPLAY_SIM' | 'HERO_ART' | 'FEATURES';
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClose }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClose, onOfflineContinue }) => {
   const [tab, setTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [showcaseTab, setShowcaseTab] = useState<ShowcaseTab>('GAMEPLAY_SIM');
   const [email, setEmail] = useState('');
@@ -488,7 +491,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
         await handleAuthResult(user);
       }
     } catch (err: any) {
-      setError(err.message || 'Guest sign-in failed.');
+      const code = err?.code || '';
+      if (code === 'auth/admin-restricted-operation' || code === 'auth/operation-not-allowed') {
+        setError('Guest mode is currently disabled for this project in the Firebase console. You can still play right now — tap "Continue Offline" below. Your progress saves on this device.');
+      } else {
+        setError(err.message || 'Guest sign-in failed.');
+      }
       setLoading(false);
     }
   };
@@ -734,6 +742,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                   <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
+
+              {/* Offline escape hatch — always works, no Firebase account needed */}
+              {onOfflineContinue && (
+                <button
+                  id="btn-continue-offline"
+                  type="button"
+                  onClick={onOfflineContinue}
+                  className="mt-3 w-full bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-2.5 rounded-xl shadow transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-emerald-400/40"
+                >
+                  <WifiOff className="w-3.5 h-3.5" />
+                  <span>Continue Offline — play now, save on this device</span>
+                </button>
+              )}
             </div>
 
           </div>
@@ -822,6 +843,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                 </svg>
                 Continue with Google
               </button>
+
+              {onOfflineContinue && (
+                <button
+                  type="button"
+                  onClick={onOfflineContinue}
+                  className="w-full mb-3.5 py-2.5 px-4 bg-emerald-900/40 hover:bg-emerald-800/50 border border-emerald-500/40 rounded-xl font-medium text-xs flex items-center justify-center gap-2.5 transition-all text-emerald-200 hover:text-white active:scale-[0.98]"
+                >
+                  <WifiOff className="w-4 h-4" />
+                  Skip login — play offline
+                </button>
+              )}
 
               <div className="relative flex items-center justify-center my-3">
                 <div className="border-t border-slate-700/80 w-full" />

@@ -1,4 +1,5 @@
 import type { PlanetSimState } from './planetSim';
+import type { HomeWorldSaveState } from './homeWorld';
 
 export type GameMode = 'MENU' | 'PLAYING' | 'PAUSED' | 'GAMEOVER';
 
@@ -861,8 +862,11 @@ export interface UserSavedData {
   // Home Planet Base & Sanctuary
   homePlanet?: HomePlanetData;
 
-  // Planet Sovereignty Simulation (home-screen planet sim)
+  // Planet Sovereignty Simulation (sim console behind the Command Center)
   planetSim?: PlanetSimState;
+
+  // Home World: town name, founding, NPC task chain progress
+  homeWorld?: HomeWorldSaveState;
 
   // Military Ribbons & Service Medals Progression
   unlockedMedalIds?: string[];

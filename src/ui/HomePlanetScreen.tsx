@@ -110,6 +110,8 @@ interface HomePlanetScreenProps {
   onOpenMap: () => void;
   onOpenTutorial: () => void;
   onUpdateSavedData: (updated: UserSavedData) => void;
+  /** When provided, the screen is embedded (Command Center) and shows a back button. */
+  onBack?: () => void;
 }
 
 export const HomePlanetScreen: React.FC<HomePlanetScreenProps> = ({
@@ -127,6 +129,7 @@ export const HomePlanetScreen: React.FC<HomePlanetScreenProps> = ({
   onOpenMap,
   onOpenTutorial,
   onUpdateSavedData,
+  onBack,
 }) => {
   // -------------------------------------------------------------------------
   // Sim state
@@ -668,6 +671,17 @@ export const HomePlanetScreen: React.FC<HomePlanetScreenProps> = ({
         <div className="shrink-0 px-2.5 pt-2 pb-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
+              {onBack && (
+                <button
+                  onClick={() => {
+                    audioEngine.playMenuClick();
+                    onBack();
+                  }}
+                  className="shrink-0 flex items-center gap-1 bg-slate-900/90 border border-slate-700 text-slate-200 text-[10px] font-bold px-2 py-1.5 rounded-xl hover:bg-slate-800 transition"
+                >
+                  ⬅ <span>Street</span>
+                </button>
+              )}
               <div className="w-8 h-8 rounded-xl bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-center shrink-0">
                 <Globe2 className="w-4 h-4 text-emerald-400" />
               </div>
@@ -868,6 +882,7 @@ export const HomePlanetScreen: React.FC<HomePlanetScreenProps> = ({
         {/* ---------------------------------------------------------------- */}
         {/* Bottom action bar — back into the classic game                   */}
         {/* ---------------------------------------------------------------- */}
+        {!onBack && (
         <div className="shrink-0 px-2.5 pb-2 pt-1 space-y-1.5 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent">
           <div className="flex gap-1.5">
             <button
@@ -915,6 +930,7 @@ export const HomePlanetScreen: React.FC<HomePlanetScreenProps> = ({
             ))}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

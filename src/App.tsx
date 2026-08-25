@@ -15,7 +15,7 @@ import { GameOverModal } from './ui/GameOverModal';
 import { PostRunSummaryModal } from './ui/PostRunSummaryModal';
 import { HUD } from './ui/HUD';
 import { PauseMenu } from './ui/PauseMenu';
-import { HomePlanetScreen } from './ui/HomePlanetScreen';
+import { HomeWorldScreen } from './ui/home-world/HomeWorldScreen';
 import { MainMenu } from './ui/MainMenu';
 import { SimErrorBoundary } from './ui/SimErrorBoundary';
 import { QuestLogModal } from './ui/QuestLogModal';
@@ -496,7 +496,7 @@ export default function App() {
               />
             }
           >
-          <HomePlanetScreen
+          <HomeWorldScreen
             savedData={savedData}
             onStartGame={() => handleStartGame()}
             onOpenHomePlanet={() => setActiveModal('HOME_PLANET')}

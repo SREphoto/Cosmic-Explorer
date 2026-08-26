@@ -10,6 +10,8 @@ import streetBackdropUrl from '../../assets/art/scene-street-dusk.png';
 import { SCENE_BACKDROPS } from './backdrops';
 import { getArtImage, artReady } from './art';
 import { NPC_PORTRAITS } from './portraits';
+import { NPC_SPRITES } from './portraits';
+import { getChromaSprite } from './chromaKey';
 
 const DOOR_LABELS: Record<string, string> = {
   shop: 'Supply Shop',
@@ -218,9 +220,45 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
       ctx.textBaseline = 'alphabetic';
     };
 
-    // Circular portrait badge for NPCs on the painted street
+    // NPC renderer: chroma-keyed full-body sprite > portrait chip > stick figure
     const drawNpcChip = (npcId: string, x: number, t: number, hasTask: boolean) => {
       const npc = npcById(npcId);
+      const spriteUrl = NPC_SPRITES[npcId];
+      const sprite = spriteUrl ? getChromaSprite(spriteUrl) : null;
+      if (sprite) {
+        const h = 132;
+        const w = (h * sprite.width) / sprite.height;
+        const feetY = GROUND_Y + 12;
+        // grounded soft shadow
+        ctx.fillStyle = 'rgba(2,6,23,0.45)';
+        ctx.beginPath();
+        ctx.ellipse(x, feetY, w * 0.3, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.drawImage(sprite, x - w / 2, feetY - h, w, h);
+        const headY = feetY - h - 4;
+        if (hasTask) {
+          const pulse = 0.6 + 0.4 * Math.sin(t * 4);
+          ctx.strokeStyle = `rgba(251,191,36,${0.45 + 0.4 * pulse})`;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(x, headY - 10, 10 + pulse * 2.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#fcd34d';
+          ctx.fillText('❗', x, headY - 24);
+        }
+        // name tag above head
+        ctx.font = 'bold 9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        const nw = ctx.measureText(npc.name).width + 12;
+        ctx.fillStyle = 'rgba(10,16,32,0.75)';
+        rr(x - nw / 2, headY - (hasTask ? 44 : 20), nw, 15, 7);
+        ctx.fill();
+        ctx.fillStyle = hasTask ? '#fcd34d' : '#e2e8f0';
+        ctx.fillText(npc.name, x, headY - (hasTask ? 33 : 9));
+        return;
+      }
       const bob = Math.sin(t * 2 + x) * 3;
       const cy = GROUND_Y - 46 + bob;
       const url = NPC_PORTRAITS[npcId];

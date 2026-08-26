@@ -10,6 +10,10 @@ import shopkeeper from '../../assets/art/npc-shopkeeper.png';
 import gardener from '../../assets/art/npc-gardener.png';
 import trainer from '../../assets/art/npc-trainer.png';
 import teller from '../../assets/art/npc-teller.png';
+import spriteJuno from '../../assets/art/sprite-juno.png';
+import spriteTownsfolk1 from '../../assets/art/sprite-townsfolk1.png';
+import spriteTownsfolk2 from '../../assets/art/sprite-townsfolk2.png';
+import spriteMechanic from '../../assets/art/sprite-mechanic.png';
 
 export const NPC_PORTRAITS: Record<string, string> = {
   quest_giver: juno,
@@ -20,4 +24,15 @@ export const NPC_PORTRAITS: Record<string, string> = {
   gardener: gardener,
   trainer: trainer,
   teller: teller,
+};
+
+/**
+ * Full-body chroma-keyed sprites (green-screen sources, keyed to alpha at
+ * load time). NPCs without one fall back to portrait chips / stick figures.
+ */
+export const NPC_SPRITES: Record<string, string> = {
+  quest_giver: spriteJuno,
+  townsfolk_1: spriteTownsfolk1,
+  townsfolk_2: spriteTownsfolk2,
+  mechanic: spriteMechanic,
 };

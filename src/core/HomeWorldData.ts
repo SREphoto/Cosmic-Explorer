@@ -482,6 +482,3 @@ export const SECRET_DEFS: SecretDef[] = [
 
 export const secretsInScene = (sceneId: SceneId): SecretDef[] =>
   SECRET_DEFS.filter((s) => s.scene === sceneId);
-
-export const nextTaskAfter = (completedIds: string[]): TaskDef | undefined =>
-  TASK_CHAIN.find((t) => !completedIds.includes(t.id));

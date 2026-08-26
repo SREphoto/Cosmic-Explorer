@@ -443,3 +443,45 @@ export const taskById = (id: string | null | undefined): TaskDef | undefined =>
 
 export const nextTaskAfter = (completedIds: string[]): TaskDef | undefined =>
   TASK_CHAIN.find((t) => !completedIds.includes(t.id));
+
+// ---------------------------------------------------------------------------
+// SECRETS — hidden discoveries scattered through every scene
+// ---------------------------------------------------------------------------
+export interface SecretDef {
+  id: string;
+  scene: SceneId;
+  x: number;
+  y: number;
+  name: string;
+  lore: string;
+  starDust: number;
+  stars: number;
+}
+
+export const SECRET_DEFS: SecretDef[] = [
+  { id: 'st_capsule', scene: 'street', x: 130, y: 352, name: 'Founders’ Time Capsule', lore: 'A tin box from founding day. Inside: a hand-drawn map of a town that didn’t exist yet.', starDust: 25, stars: 1 },
+  { id: 'st_cat', scene: 'street', x: 2160, y: 344, name: 'The Inspector’s Nap Spot', lore: 'A gray cat sleeps on the warm vent. It opens one eye, judges you, and allows a single pat.', starDust: 15, stars: 0 },
+  { id: 'st_brick', scene: 'street', x: 705, y: 262, name: 'Loose Brick by the Board', lore: 'Behind it, a chalk note: “When the sky sings, water the grove.”', starDust: 10, stars: 0 },
+  { id: 'hg_locker', scene: 'hangar', x: 1150, y: 300, name: 'Locker 07 Sticker Cache', lore: 'Your old flight stickers, saved from a ship that never came home. You smile.', starDust: 20, stars: 1 },
+  { id: 'hg_crate', scene: 'hangar', x: 250, y: 330, name: 'Crate Marked “SPARES (HONEST)”', lore: 'Inside: one pristine nose cone and a note — “borrowed it back. — V.”', starDust: 15, stars: 0 },
+  { id: 'gr_mush', scene: 'greenhouse', x: 1150, y: 352, name: 'Glowing Mushroom Ring', lore: 'A fairy ring of lumen caps. Stepping in it hums a chord only the gardener knows.', starDust: 20, stars: 1 },
+  { id: 'gr_bench', scene: 'greenhouse', x: 300, y: 340, name: 'Sprout Under the Bench', lore: 'Someone planted a star-daisy in secret. It’s been blooming toward the vent light.', starDust: 10, stars: 0 },
+  { id: 'sh_board', scene: 'shop', x: 900, y: 360, name: 'Loose Floorboard Stash', lore: 'Bargo’s emergency candy reserve. He’ll deny it. Take one anyway.', starDust: 15, stars: 0 },
+  { id: 'sh_relic', scene: 'shop', x: 150, y: 250, name: 'Dusty “Relic” Shelf', lore: 'Behind the junk: a genuine pre-Collapse compass. It still points… up.', starDust: 30, stars: 1 },
+  { id: 'gy_trophy', scene: 'gym', x: 1050, y: 330, name: 'Trophy Behind the Bench', lore: '“Junior Zero-G Hurdles, 3rd place — Vega.” She never mentions it. Now you know why.', starDust: 15, stars: 0 },
+  { id: 'gy_chalk', scene: 'gym', x: 250, y: 220, name: 'Chalk Handprint High Mark', lore: 'A handprint far above the wall bar. No one admits to it. Everyone trains under it.', starDust: 10, stars: 0 },
+  { id: 'bk_vault', scene: 'bank', x: 1050, y: 260, name: 'Scratches by the Vault', lore: 'Tiny tally marks in the vault steel — 41 of them. Quill refuses to explain.', starDust: 20, stars: 0 },
+  { id: 'bk_coin', scene: 'bank', x: 300, y: 352, name: 'Coin Under the Counter', lore: 'A first-day Stellar mint. Worth more than the vault’s contents, to the right collector.', starDust: 30, stars: 1 },
+  { id: 'tr_plaque', scene: 'trophy', x: 1100, y: 300, name: 'The Nameless Plaque', lore: 'A medal case with the nameplate removed. The engraving underneath reads: “For coming back.”', starDust: 25, stars: 1 },
+  { id: 'tr_medal', scene: 'trophy', x: 250, y: 280, name: 'Medal With No Record', lore: 'A victory from a battle no archive admits. The metal still smells of ozone.', starDust: 15, stars: 0 },
+  { id: 'wh_sigil', scene: 'warehouse', x: 1100, y: 320, name: 'Crate With the Unknown Sigil', lore: 'Mira logs it as “do not open.” The sigil glows faintly when raiders are near.', starDust: 25, stars: 1 },
+  { id: 'wh_hammock', scene: 'warehouse', x: 250, y: 300, name: 'The Hidden Hammock', lore: 'Mira’s off-books break spot. A thermos of comet tea, still warm. You didn’t see anything.', starDust: 10, stars: 0 },
+  { id: 'cm_chip', scene: 'command', x: 1100, y: 300, name: 'Encrypted Data Chip', lore: 'Orion’s private log: “If the Ash Legion wakes, burn this room before they read it.” Chilling.', starDust: 30, stars: 1 },
+  { id: 'cm_flag', scene: 'command', x: 250, y: 240, name: 'The First Flag', lore: 'The cloth you planted on landing day, framed sideways. Orion keeps it where the consoles can see it.', starDust: 15, stars: 0 },
+];
+
+export const secretsInScene = (sceneId: SceneId): SecretDef[] =>
+  SECRET_DEFS.filter((s) => s.scene === sceneId);
+
+export const nextTaskAfter = (completedIds: string[]): TaskDef | undefined =>
+  TASK_CHAIN.find((t) => !completedIds.includes(t.id));

@@ -12,6 +12,10 @@ import luminari from '../../assets/art/icons/faction-luminari.png';
 import verdantCircle from '../../assets/art/icons/faction-verdant-circle.png';
 import tradeGuild from '../../assets/art/icons/faction-trade-guild.png';
 import voidRaiders from '../../assets/art/icons/faction-void-raiders.png';
+import ashLegion from '../../assets/art/icons/faction-ash-legion.png';
+import defenseAegis from '../../assets/art/icons/defense-aegis.png';
+import defenseTurret from '../../assets/art/icons/defense-turretgrid.png';
+import defenseSensor from '../../assets/art/icons/defense-sensor.png';
 import structSolar from '../../assets/art/icons/struct-solar.png';
 import structHydro from '../../assets/art/icons/struct-hydro.png';
 import structExtractor from '../../assets/art/icons/struct-extractor.png';
@@ -37,7 +41,17 @@ export const FACTION_ICONS: Record<string, string> = {
   VERDANT_CIRCLE: verdantCircle,
   TRADE_GUILD: tradeGuild,
   VOID_RAIDERS: voidRaiders,
+  ASH_LEGION: ashLegion,
 };
+
+export const DEFENSE_ICONS: Record<string, string> = {
+  aegis: defenseAegis,
+  turretGrid: defenseTurret,
+  sensorArray: defenseSensor,
+};
+
+export const simIcon = (id: string): string | undefined =>
+  FACTION_ICONS[id] || REGION_ICONS[id] || STRUCTURE_ICONS[id] || DEFENSE_ICONS[id];
 
 export const STRUCTURE_ICONS: Record<string, string> = {
   SOLAR_ARRAY: structSolar,
@@ -51,6 +65,3 @@ export const STRUCTURE_ICONS: Record<string, string> = {
   GROVE: structGrove,
   TURRET_POD: structTurret,
 };
-
-export const simIcon = (id: string): string | undefined =>
-  FACTION_ICONS[id] || REGION_ICONS[id] || STRUCTURE_ICONS[id];

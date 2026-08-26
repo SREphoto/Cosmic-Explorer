@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Star, Gem, Sparkles, Edit3, FileText, HelpCircle, User } from 'lucide-react';
 import { UserSavedData } from '../../types/game';
 import { HomeWorldSaveState, PlanetLocationDef, SceneId } from '../../types/homeWorld';
-import { SCENE_DEFS, npcById, taskById, nextTaskAfter } from '../../core/HomeWorldData';
+import { SCENE_DEFS, npcById, taskById, nextTaskAfter, SECRET_DEFS } from '../../core/HomeWorldData';
 import { NPC_PORTRAITS } from './portraits';
 import { weatherAt, WEATHER_META } from '../../core/Weather';
 import { StorageManager } from '../../core/Storage';
@@ -317,6 +317,34 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
     setIsRenaming(false);
   };
 
+  // -------------------------------------------------------------------------
+  // Secrets
+  // -------------------------------------------------------------------------
+  const handleSecretFound = useCallback(
+    (secretId: string) => {
+      const def = SECRET_DEFS.find((s) => s.id === secretId);
+      if (!def) return;
+      const hw: HomeWorldSaveState = { ...DEFAULT_HOME_WORLD, ...(savedData.homeWorld || {}) };
+      if ((hw.discoveredSecretIds || []).includes(secretId)) return;
+      const balance = savedData.totalStarDust || savedData.starDustCurrency || 0;
+      persist({
+        homeWorld: { ...hw, discoveredSecretIds: [...(hw.discoveredSecretIds || []), secretId] },
+        totalStarDust: balance + def.starDust,
+        starDustCurrency: balance + def.starDust,
+        totalStarDustAllTime: (savedData.totalStarDustAllTime || 0) + def.starDust,
+        totalStars: (savedData.totalStars || 0) + def.stars,
+        totalStarsAllTime: (savedData.totalStarsAllTime || 0) + def.stars,
+      });
+      audioEngine.playPowerUpCollect();
+      showToast(
+        'SUCCESS',
+        `Secret discovered — ${def.name}`,
+        `${def.lore} (+${def.starDust} Star Dust${def.stars ? `, +${def.stars} Star` : ''})`
+      );
+    },
+    [persist, savedData]
+  );
+
   const starDustBalance = savedData.totalStarDust || savedData.starDustCurrency || 0;
   const foundedDate = homeWorld.foundedAt
     ? new Date(homeWorld.foundedAt).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
@@ -355,6 +383,12 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
                 title="Town weather"
               >
                 <span>{WEATHER_META[weather].icon}</span> {WEATHER_META[weather].label}
+              </span>
+              <span
+                className="bg-slate-900/85 border border-slate-800 px-2 py-1 rounded-full text-[10px] font-bold text-amber-200/90 flex items-center gap-1"
+                title="Secrets discovered"
+              >
+                🔎 {(homeWorld.discoveredSecretIds || []).length}/{SECRET_DEFS.length}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -412,10 +446,12 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
           <PovSceneView
             scene={scene}
             taskNpcIds={taskNpcIds}
+            discoveredSecretIds={homeWorld.discoveredSecretIds || []}
             onEnterScene={(id) => enterScene(id)}
             onExit={scene.kind === 'street' ? exitToPlanet : () => enterScene('street')}
             onTalk={handleTalk}
             onAction={handleAction}
+            onSecretFound={handleSecretFound}
           />
 
           {/* dialogue box */}

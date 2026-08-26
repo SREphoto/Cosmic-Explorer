@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { SceneDef, SceneId, HotspotDef } from '../../types/homeWorld';
-import { SCENE_DEFS, npcById } from '../../core/HomeWorldData';
+import { SCENE_DEFS, npcById, secretsInScene } from '../../core/HomeWorldData';
 
 const VW = 640;
 const VH = 420;
@@ -33,11 +33,25 @@ interface PovSceneViewProps {
   scene: SceneDef;
   /** NPC ids that currently have an available task marker. */
   taskNpcIds: string[];
+  discoveredSecretIds?: string[];
   onEnterScene: (id: SceneId) => void;
   onExit: () => void;
   onTalk: (npcId: string) => void;
   onAction: (actionId: string) => void;
+  onSecretFound?: (secretId: string) => void;
 }
+
+/** Ambient extra characters who mill about inside each building. */
+const AMBIENT_CAST: Record<string, string[]> = {
+  hangar: ['townsfolk_2'],
+  shop: ['townsfolk_1'],
+  bank: ['townsfolk_2'],
+  gym: ['townsfolk_1'],
+  greenhouse: ['townsfolk_2'],
+  trophy: ['townsfolk_1'],
+  warehouse: ['townsfolk_2'],
+  command: ['mechanic'],
+};
 
 interface FacadeStyle {
   wall: string;
@@ -60,18 +74,22 @@ const FACADE_STYLES: Record<string, FacadeStyle> = {
 export const PovSceneView: React.FC<PovSceneViewProps> = ({
   scene,
   taskNpcIds,
+  discoveredSecretIds,
   onEnterScene,
   onExit,
   onTalk,
   onAction,
+  onSecretFound,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const camRef = useRef({ x: 0, y: 0, vx: 0 });
   const dragRef = useRef({ active: false, x: 0, y: 0, moved: 0 });
   const sceneRef = useRef(scene);
   const taskNpcsRef = useRef(taskNpcIds);
+  const discoveredRef = useRef(discoveredSecretIds || []);
   sceneRef.current = scene;
   taskNpcsRef.current = taskNpcIds;
+  discoveredRef.current = discoveredSecretIds || [];
 
   useEffect(() => {
     camRef.current = { x: scene.kind === 'street' ? 260 : 0, y: 0, vx: 0 };
@@ -306,9 +324,9 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
       }
     };
 
-    // Passers-by strolling the street for a sense of life
-    const drawWanderers = (t: number) => {
-      const sprites = [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2];
+    // Passers-by strolling for a sense of life
+    const drawWanderers = (t: number, urls: string[]) => {
+      const sprites = urls;
       const scW = sceneRef.current.width;
       sprites.forEach((url, k) => {
         const spr = url ? getChromaSprite(url) : null;
@@ -514,7 +532,11 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           }
         }
       } else if (artReady(backdrop0)) {
-        drawLayer(backdrop0, 0.5, 0, VH);
+        // interiors: dimmed full copy drifts slow (back wall), crisp lower band mid
+        drawLayer(backdrop0, 0.3, 0, VH);
+        ctx.fillStyle = 'rgba(2,6,23,0.45)';
+        ctx.fillRect(0, 0, VW, VH);
+        drawLayer(backdrop0, 0.65, VH * 0.3, VH * 0.7, 0.3, 0.7);
       }
 
       ctx.save();
@@ -665,7 +687,7 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
             drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
           }
         }
-        if (streetArtReady) drawWanderers(t);
+        if (streetArtReady) drawWanderers(t, [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2]);
       } else {
         // ---- interior ----
         const interiorArtReady = artReady(backdrop0);
@@ -716,6 +738,7 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
               drawHoloDoor(hs.x, hs.y, hs.w, hs.h, '⬅', 'EXIT', sc.palette.accent, t);
             }
           }
+          drawWanderers(t, AMBIENT_CAST[sc.id] || []);
         }
 
         // NPCs — portrait chips over painted art, stick figures in fallback
@@ -726,6 +749,35 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
             drawChatter(npcPos.npcId, npcPos.x, t);
           } else {
             drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
+          }
+        }
+      }
+
+      // secrets: faint shimmer until found, quiet golden rune once claimed
+      for (const s of secretsInScene(sc.id)) {
+        if (s.x < cam.x - 40 || s.x > cam.x + VW + 40) continue;
+        if (discoveredRef.current.includes(s.id)) {
+          ctx.fillStyle = 'rgba(252,211,77,0.5)';
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(252,211,77,0.35)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 6.5, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          const tw = Math.sin(t * 1.3 + s.x * 0.7);
+          if (tw > 0.55) {
+            const a = (tw - 0.55) * 0.9;
+            ctx.strokeStyle = `rgba(226,232,240,${a.toFixed(3)})`;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(s.x - 4, s.y);
+            ctx.lineTo(s.x + 4, s.y);
+            ctx.moveTo(s.x, s.y - 4);
+            ctx.lineTo(s.x, s.y + 4);
+            ctx.stroke();
           }
         }
       }
@@ -916,6 +968,14 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
     const wx = x + camRef.current.x;
     const wy = y - camRef.current.y;
     const sc = sceneRef.current;
+
+    // secrets take priority under the fingertip
+    for (const s of secretsInScene(sc.id)) {
+      if (Math.abs(wx - s.x) < 26 && Math.abs(wy - s.y) < 26) {
+        if (!discoveredRef.current.includes(s.id)) onSecretFound?.(s.id);
+        return;
+      }
+    }
 
     for (const hs of sc.hotspots) {
       if (wx >= hs.x && wx <= hs.x + hs.w && wy >= hs.y && wy <= hs.y + hs.h) {

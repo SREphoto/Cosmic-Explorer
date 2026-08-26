@@ -105,4 +105,6 @@ export interface HomeWorldSaveState {
   currentTaskId?: string | null;
   npcTalkCounts?: Record<string, number>;
   lastVisitedSceneId?: SceneId;
+  /** Secrets the player has discovered across the town scenes. */
+  discoveredSecretIds?: string[];
 }

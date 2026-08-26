@@ -21,3 +21,13 @@ export function weatherAt(ts: number): WeatherKind {
   const r = h - Math.floor(h);
   return CYCLE[Math.floor(r * CYCLE.length) % CYCLE.length];
 }
+
+export type TownEvent = 'NONE' | 'MARKET';
+
+/** Market days: bunting goes up, traders visit, the chatter changes. */
+export function townEventAt(ts: number): TownEvent {
+  const seg = Math.floor(ts / 180000);
+  const h = Math.sin(seg * 311.7) * 43758.5453;
+  const r = h - Math.floor(h);
+  return r > 0.72 ? 'MARKET' : 'NONE';
+}

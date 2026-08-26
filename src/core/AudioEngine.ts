@@ -291,6 +291,11 @@ export class AudioEngine {
   // HOME TOWN THEME — generative dusk lullaby
   // ==========================================
   private townMusicId: number | null = null;
+  private townMood: 'warm' | 'bright' | 'low' = 'warm';
+
+  public setTownMood(mood: 'warm' | 'bright' | 'low') {
+    this.townMood = mood;
+  }
 
   public startTownMusic() {
     this.init();
@@ -301,19 +306,45 @@ export class AudioEngine {
     }
     const ctx = this.ctx;
     const out = () => this.musicGainNode || ctx.destination;
-    const chords = [
-      [261.63, 329.63, 392.0, 493.88],
-      [220.0, 261.63, 329.63, 392.0],
-      [174.61, 220.0, 261.63, 329.63],
-      [196.0, 246.94, 293.66, 392.0],
-    ];
-    const penta = [523.25, 587.33, 659.25, 783.99, 880.0];
+    const MOODS: Record<'warm' | 'bright' | 'low', { chords: number[][]; penta: number[]; density: number }> = {
+      warm: {
+        chords: [
+          [261.63, 329.63, 392.0, 493.88],
+          [220.0, 261.63, 329.63, 392.0],
+          [174.61, 220.0, 261.63, 329.63],
+          [196.0, 246.94, 293.66, 392.0],
+        ],
+        penta: [523.25, 587.33, 659.25, 783.99, 880.0],
+        density: 0.42,
+      },
+      bright: {
+        chords: [
+          [349.23, 440.0, 523.25, 659.25],
+          [293.66, 349.23, 440.0, 523.25],
+          [261.63, 329.63, 392.0, 493.88],
+          [392.0, 493.88, 587.33, 783.99],
+        ],
+        penta: [698.46, 783.99, 880.0, 1046.5, 1174.66],
+        density: 0.55,
+      },
+      low: {
+        chords: [
+          [130.81, 164.81, 196.0, 246.94],
+          [110.0, 130.81, 164.81, 196.0],
+          [87.31, 110.0, 130.81, 164.81],
+          [98.0, 123.47, 146.83, 196.0],
+        ],
+        penta: [261.63, 293.66, 329.63, 392.0, 440.0],
+        density: 0.3,
+      },
+    };
     let bar = 0;
     const playBar = () => {
       if (!this.ctx) return;
       const now = this.ctx.currentTime;
       const dest = out();
-      const chord = chords[bar % chords.length];
+      const S = MOODS[this.townMood];
+      const chord = S.chords[bar % S.chords.length];
       // warm pad
       chord.forEach((f) => {
         const o = ctx.createOscillator();
@@ -330,8 +361,8 @@ export class AudioEngine {
       });
       // sparse music-box plucks
       for (let s = 0; s < 8; s++) {
-        if (Math.random() < 0.42) {
-          const f = penta[Math.floor(Math.random() * penta.length)];
+        if (Math.random() < S.density) {
+          const f = S.penta[Math.floor(Math.random() * S.penta.length)];
           const t0 = now + s * 0.95 + Math.random() * 0.12;
           const o = ctx.createOscillator();
           const g = ctx.createGain();

@@ -10,12 +10,13 @@ import streetBackdropUrl from '../../assets/art/scene-street-dusk.png';
 import streetSkyUrl from '../../assets/art/layer-street-sky.png';
 import streetFarUrl from '../../assets/art/layer-street-far.png';
 import streetNearUrl from '../../assets/art/layer-street-near.png';
+import streetMarketUrl from '../../assets/art/layer-street-market.png';
 import { SCENE_BACKDROPS } from './backdrops';
 import { getArtImage, artReady } from './art';
 import { NPC_PORTRAITS } from './portraits';
 import { NPC_SPRITES } from './portraits';
 import { getChromaSprite } from './chromaKey';
-import { weatherAt } from '../../core/Weather';
+import { weatherAt, townEventAt } from '../../core/Weather';
 
 const DOOR_LABELS: Record<string, string> = {
   shop: 'Supply Shop',
@@ -358,6 +359,7 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
       "Tea at the cafe?", "Ship launches soon!", "Raiders stir, they say…",
       "Mind the puddles.", "Stars look close tonight.", "Growing well, eh?",
       "Vault rates are fair.", "Coach says one more set.",
+      "Market day!", "Fresh lumen fruit!", "Bunting looks lovely.", "Half-price coils today!",
     ];
     const drawChatter = (npcId: string, x: number, t: number) => {
       const tt = t + x * 0.13;
@@ -531,6 +533,10 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
             drawLayer(backdrop0, 0.6, 0, VH);
           }
         }
+        if (townEventAt(Date.now()) === 'MARKET') {
+          const mkt = getChromaSprite(streetMarketUrl);
+          if (mkt) drawLayer(mkt, 0.6, VH * 0.08, VH * 0.55);
+        }
       } else if (artReady(backdrop0)) {
         // interiors: dimmed full copy drifts slow (back wall), crisp lower band mid
         drawLayer(backdrop0, 0.3, 0, VH);
@@ -660,6 +666,66 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.fillText('QUESTS', bx, hs.y + 76);
         }
 
+        // swinging hang-signs over two storefronts
+        if (streetArtReady) {
+          for (const sgn of [
+            { x: 280, icon: '🛒' },
+            { x: 1300, icon: '🪴' },
+          ]) {
+            const ang = Math.sin(t * 1.7 + sgn.x) * 0.14;
+            ctx.save();
+            ctx.translate(sgn.x, 168);
+            ctx.rotate(ang);
+            ctx.strokeStyle = '#3f3a33';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, 10);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(20,16,12,0.9)';
+            rr(-13, 10, 26, 20, 4);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(251,191,36,0.5)';
+            ctx.lineWidth = 1;
+            rr(-13, 10, 26, 20, 4);
+            ctx.stroke();
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(sgn.icon, 0, 21);
+            ctx.textBaseline = 'alphabetic';
+            ctx.restore();
+          }
+          // the occasional cat dash
+          const catC = t % 41;
+          if (catC < 1.7) {
+            const p = catC / 1.7;
+            const cxw = -50 + p * (sc.width + 100);
+            const bounce = Math.abs(Math.sin(p * 60)) * 2.5;
+            ctx.fillStyle = 'rgba(10,10,14,0.9)';
+            ctx.beginPath();
+            ctx.ellipse(cxw, GROUND_Y + 8 - bounce, 9, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(cxw + 9, GROUND_Y + 4 - bounce, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(cxw + 7, GROUND_Y + 1 - bounce);
+            ctx.lineTo(cxw + 8, GROUND_Y - 2 - bounce);
+            ctx.lineTo(cxw + 9.5, GROUND_Y + 1 - bounce);
+            ctx.moveTo(cxw + 10, GROUND_Y + 1 - bounce);
+            ctx.lineTo(cxw + 11.5, GROUND_Y - 2 - bounce);
+            ctx.lineTo(cxw + 12.5, GROUND_Y + 1.5 - bounce);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(10,10,14,0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cxw - 8, GROUND_Y + 7 - bounce);
+            ctx.quadraticCurveTo(cxw - 14, GROUND_Y + 2 - bounce, cxw - 12, GROUND_Y - 3 - bounce);
+            ctx.stroke();
+          }
+        }
+
         // chimney smoke — the town cooks and heats
         if (streetArtReady) {
           for (const cxp of [310, 1520, 2080]) {
@@ -687,7 +753,11 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
             drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
           }
         }
-        if (streetArtReady) drawWanderers(t, [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2, NPC_SPRITES.keeper]);
+        if (streetArtReady) {
+          const cast = [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2, NPC_SPRITES.keeper];
+          if (townEventAt(Date.now()) === 'MARKET') cast.push(NPC_SPRITES.trainer, NPC_SPRITES.gardener);
+          drawWanderers(t, cast);
+        }
       } else {
         // ---- interior ----
         const interiorArtReady = artReady(backdrop0);
@@ -739,6 +809,35 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
             }
           }
           drawWanderers(t, AMBIENT_CAST[sc.id] || []);
+          if (sc.id === 'hangar') {
+            // welding sparks near the ship
+            const burst = t % 6.5;
+            if (burst < 0.5) {
+              for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2 + t * 3;
+                const d = 6 + burst * 26;
+                ctx.strokeStyle = `rgba(255,200,90,${Math.max(0, 0.7 * (1 - burst * 2)).toFixed(3)})`;
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(590 + Math.cos(a) * 4, 300 + Math.sin(a) * 4);
+                ctx.lineTo(590 + Math.cos(a) * d, 300 + Math.sin(a) * d);
+                ctx.stroke();
+              }
+            }
+          } else if (sc.id === 'command') {
+            // holo-table sweep
+            const sweep = (t * 0.9) % (Math.PI * 2);
+            ctx.strokeStyle = 'rgba(103,232,249,0.18)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(650, 250, 60, 14, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(103,232,249,0.4)';
+            ctx.beginPath();
+            ctx.moveTo(650, 250);
+            ctx.lineTo(650 + Math.cos(sweep) * 60, 250 + Math.sin(sweep) * 14);
+            ctx.stroke();
+          }
         }
 
         // NPCs — portrait chips over painted art, stick figures in fallback

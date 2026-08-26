@@ -98,6 +98,19 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
       weather === 'RAIN' ? 'rain' : weather === 'FOG' || weather === 'SNOW' ? 'wind' : 'none'
     );
   }, [weather]);
+
+  // Per-building music mood
+  useEffect(() => {
+    const mood: 'warm' | 'bright' | 'low' =
+      view.mode === 'scene' && scene
+        ? ['hangar', 'command', 'warehouse'].includes(scene.id)
+          ? 'low'
+          : scene.id === 'greenhouse'
+            ? 'bright'
+            : 'warm'
+        : 'warm';
+    audioEngine.setTownMood(mood);
+  }, [view.mode, scene?.id]);
   const later = (fn: () => void, ms: number) => timeoutsRef.current.push(setTimeout(fn, ms));
 
   // -------------------------------------------------------------------------

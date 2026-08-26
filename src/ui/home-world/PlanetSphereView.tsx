@@ -3,6 +3,7 @@ import { PLANET_LOCATIONS } from '../../core/HomeWorldData';
 import { PlanetLocationDef } from '../../types/homeWorld';
 import planetDiskUrl from '../../assets/art/home-planet-disk.png';
 import { getArtImage, artReady } from './art';
+import { weatherAt } from '../../core/Weather';
 
 const W = 640;
 const H = 560;
@@ -122,6 +123,61 @@ export const PlanetSphereView: React.FC<PlanetSphereViewProps> = ({
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // Sky weather: aurora curtains, meteors, rain, snow over the planet
+      const skyWx = weatherAt(Date.now());
+      if (skyWx === 'AURORA') {
+        const aCols = ['52,211,153', '34,211,238', '167,139,250'];
+        aCols.forEach((c, k) => {
+          ctx.strokeStyle = `rgba(${c},0.12)`;
+          ctx.lineWidth = 20;
+          ctx.beginPath();
+          for (let x = -10; x <= W + 10; x += 26) {
+            const y = 46 + k * 20 + Math.sin(x * 0.014 + t * 0.6 + k * 1.7) * 14;
+            if (x === -10) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        });
+      } else if (skyWx === 'METEORS') {
+        const cyc = t % 4;
+        if (cyc < 0.7) {
+          const p = cyc / 0.7;
+          const mx = W * 0.9 - p * W * 0.6;
+          const my = 20 + p * 100;
+          const mg = ctx.createLinearGradient(mx, my, mx + 54, my - 22);
+          mg.addColorStop(0, 'rgba(255,255,255,0.8)');
+          mg.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.strokeStyle = mg;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(mx + 54, my - 22);
+          ctx.stroke();
+        }
+      } else if (skyWx === 'RAIN') {
+        ctx.strokeStyle = 'rgba(170,205,255,0.22)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < 40; i++) {
+          const px = ((i * 97.3 + t * 430) % (W + 40)) - 20;
+          const py = ((i * 211.7 + t * 640) % (H + 30)) - 15;
+          ctx.moveTo(px, py);
+          ctx.lineTo(px - 2.5, py + 10);
+        }
+        ctx.stroke();
+      } else if (skyWx === 'SNOW') {
+        ctx.fillStyle = 'rgba(240,248,255,0.7)';
+        for (let i = 0; i < 34; i++) {
+          const px = (((i * 89.7) % (W + 20)) - 10) + Math.sin(t * 0.9 + i) * 12;
+          const py = ((i * 53.1 + t * (30 + (i % 5) * 7)) % (H + 20)) - 10;
+          ctx.globalAlpha = 0.3 + (i % 3) * 0.2;
+          ctx.beginPath();
+          ctx.arc(px, py, 1 + (i % 3) * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
       }
 
       // Atmosphere glow

@@ -4,6 +4,7 @@ import { UserSavedData } from '../../types/game';
 import { HomeWorldSaveState, PlanetLocationDef, SceneId } from '../../types/homeWorld';
 import { SCENE_DEFS, npcById, taskById, nextTaskAfter } from '../../core/HomeWorldData';
 import { NPC_PORTRAITS } from './portraits';
+import { weatherAt, WEATHER_META } from '../../core/Weather';
 import { StorageManager } from '../../core/Storage';
 import { audioEngine } from '../../core/AudioEngine';
 import { showToast } from '../Toast';
@@ -65,6 +66,7 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
   const [overlay, setOverlay] = useState(0); // 0 = clear, 1 = black
   const [leaving, setLeaving] = useState(false); // planet zoom-out anim
   const [dialogue, setDialogue] = useState<{ npcId: string; text: string; taskTitle?: string } | null>(null);
+  const [weather, setWeather] = useState(() => weatherAt(Date.now()));
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
 
@@ -73,6 +75,29 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
   viewRef.current = view;
 
   useEffect(() => () => timeoutsRef.current.forEach(clearTimeout), []);
+
+  // Town weather ticker
+  useEffect(() => {
+    const id = window.setInterval(() => setWeather(weatherAt(Date.now())), 20000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Living town: gentle theme music + weather ambience while home
+  useEffect(() => {
+    const kick = () => audioEngine.startTownMusic();
+    window.addEventListener('pointerdown', kick, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', kick);
+      audioEngine.stopTownMusic();
+      audioEngine.setWeatherAmbience('none');
+    };
+  }, []);
+
+  useEffect(() => {
+    audioEngine.setWeatherAmbience(
+      weather === 'RAIN' ? 'rain' : weather === 'FOG' || weather === 'SNOW' ? 'wind' : 'none'
+    );
+  }, [weather]);
   const later = (fn: () => void, ms: number) => timeoutsRef.current.push(setTimeout(fn, ms));
 
   // -------------------------------------------------------------------------
@@ -324,6 +349,12 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
               </span>
               <span className="bg-slate-900/85 border border-slate-800 px-2 py-1 rounded-full text-[10px] font-bold text-yellow-200 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-yellow-300" /> {starDustBalance.toLocaleString()}
+              </span>
+              <span
+                className="bg-slate-900/85 border border-slate-800 px-2 py-1 rounded-full text-[10px] font-bold text-slate-300 flex items-center gap-1"
+                title="Town weather"
+              >
+                <span>{WEATHER_META[weather].icon}</span> {WEATHER_META[weather].label}
               </span>
             </div>
             <div className="flex items-center gap-1.5">

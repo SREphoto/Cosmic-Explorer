@@ -12,6 +12,7 @@ import { getArtImage, artReady } from './art';
 import { NPC_PORTRAITS } from './portraits';
 import { NPC_SPRITES } from './portraits';
 import { getChromaSprite } from './chromaKey';
+import { weatherAt } from '../../core/Weather';
 
 const DOOR_LABELS: Record<string, string> = {
   shop: 'Supply Shop',
@@ -302,6 +303,72 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
       }
     };
 
+    // Passers-by strolling the street for a sense of life
+    const drawWanderers = (t: number) => {
+      const sprites = [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2];
+      const scW = sceneRef.current.width;
+      sprites.forEach((url, k) => {
+        const spr = url ? getChromaSprite(url) : null;
+        if (!spr) return;
+        const speed = 26 + k * 9;
+        const span = scW + 240;
+        const prog = (t * speed + k * 977) % (span * 2);
+        const ltr = prog < span;
+        const x = ltr ? prog - 120 : span * 2 - prog - 120;
+        if (x < camRef.current.x - 90 || x > camRef.current.x + VW + 90) return;
+        const h = 118;
+        const w = (h * spr.width) / spr.height;
+        const step = Math.sin(t * 7 + k * 2) * 1.5;
+        ctx.save();
+        ctx.translate(x, 0);
+        if (!ltr) ctx.scale(-1, 1);
+        ctx.fillStyle = 'rgba(2,6,23,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(0, GROUND_Y + 14, w * 0.28, 5.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.drawImage(spr, -w / 2, GROUND_Y + 14 - h + step, w, h);
+        ctx.restore();
+      });
+    };
+
+    // Ambient conversation bubbles — the town talks to itself
+    const CHATTER = [
+      "Lovely dusk!", "Fresh parts in!", "See the aurora?", "My rocket, my rules.",
+      "Tea at the cafe?", "Ship launches soon!", "Raiders stir, they say…",
+      "Mind the puddles.", "Stars look close tonight.", "Growing well, eh?",
+      "Vault rates are fair.", "Coach says one more set.",
+    ];
+    const drawChatter = (npcId: string, x: number, t: number) => {
+      const tt = t + x * 0.13;
+      const phase = tt % 10;
+      if (phase > 4.5) return;
+      const cycle = Math.floor(tt / 10);
+      const hsh = Math.abs(Math.sin(npcId.length * 91.7 + cycle * 17.3));
+      const line = CHATTER[Math.floor(hsh * 997) % CHATTER.length];
+      const fade = Math.min(1, phase * 3) * Math.min(1, (4.5 - phase) * 2);
+      const y = GROUND_Y - 162;
+      ctx.globalAlpha = 0.92 * fade;
+      ctx.font = 'bold 8.5px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const w = ctx.measureText(line).width + 14;
+      ctx.fillStyle = 'rgba(15,23,42,0.92)';
+      rr(x - w / 2, y - 16, w, 17, 8);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+      ctx.lineWidth = 1;
+      rr(x - w / 2, y - 16, w, 17, 8);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y + 1);
+      ctx.lineTo(x + 4, y + 1);
+      ctx.lineTo(x, y + 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(line, x, y - 4);
+      ctx.globalAlpha = 1;
+    };
+
     const drawInteriorProps = (id: SceneId, t: number) => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -548,10 +615,12 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           const hasTask = taskNpcsRef.current.includes(npcPos.npcId);
           if (streetArtReady) {
             drawNpcChip(npcPos.npcId, npcPos.x, t, hasTask);
+            drawChatter(npcPos.npcId, npcPos.x, t);
           } else {
             drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
           }
         }
+        if (streetArtReady) drawWanderers(t);
       } else {
         // ---- interior ----
         const interiorArtReady = artReady(backdrop0);
@@ -609,6 +678,7 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           const hasTask = taskNpcsRef.current.includes(npcPos.npcId);
           if (interiorArtReady) {
             drawNpcChip(npcPos.npcId, npcPos.x, t, hasTask);
+            drawChatter(npcPos.npcId, npcPos.x, t);
           } else {
             drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
           }
@@ -644,6 +714,74 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.beginPath();
           ctx.arc(px, py, amb.size * (0.7 + tw * 0.6), 0, Math.PI * 2);
           ctx.fill();
+        }
+      }
+
+      // ---- weather layer (screen space) ----
+      const wx = weatherAt(Date.now());
+      if (wx === 'RAIN') {
+        ctx.fillStyle = 'rgba(20,40,80,0.10)';
+        ctx.fillRect(0, 0, VW, VH);
+        ctx.strokeStyle = 'rgba(170,205,255,0.32)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < 70; i++) {
+          const px = ((i * 97.3 + t * 480) % (VW + 40)) - 20;
+          const py = ((i * 211.7 + t * 720) % (VH + 30)) - 15;
+          ctx.moveTo(px, py);
+          ctx.lineTo(px - 2.5, py + 11);
+        }
+        ctx.stroke();
+      } else if (wx === 'SNOW') {
+        ctx.fillStyle = 'rgba(240,248,255,0.75)';
+        for (let i = 0; i < 55; i++) {
+          const px = (((i * 89.7) % (VW + 20)) - 10) + Math.sin(t * 0.9 + i) * 14;
+          const py = ((i * 53.1 + t * (34 + (i % 5) * 8)) % (VH + 20)) - 10;
+          ctx.globalAlpha = 0.35 + (i % 3) * 0.2;
+          ctx.beginPath();
+          ctx.arc(px, py, 1 + (i % 3) * 0.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      } else if (wx === 'AURORA') {
+        const cols = ['52,211,153', '34,211,238', '167,139,250'];
+        cols.forEach((c, k) => {
+          ctx.strokeStyle = `rgba(${c},0.14)`;
+          ctx.lineWidth = 26;
+          ctx.beginPath();
+          for (let x = -10; x <= VW + 10; x += 26) {
+            const y = 52 + k * 24 + Math.sin(x * 0.012 + t * 0.7 + k * 1.8) * 16;
+            if (x === -10) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        });
+      } else if (wx === 'FOG') {
+        for (let k = 0; k < 3; k++) {
+          const y = VH * (0.45 + k * 0.16);
+          const drift = Math.sin(t * 0.25 + k * 2) * 60;
+          const fg = ctx.createLinearGradient(0, y - 34, 0, y + 34);
+          fg.addColorStop(0, 'rgba(226,232,240,0)');
+          fg.addColorStop(0.5, `rgba(226,232,240,${0.1 - k * 0.02})`);
+          fg.addColorStop(1, 'rgba(226,232,240,0)');
+          ctx.fillStyle = fg;
+          ctx.fillRect(-80 + drift, y - 34, VW + 160, 68);
+        }
+      } else if (wx === 'METEORS') {
+        const cyc = t % 5;
+        if (cyc < 0.8) {
+          const p = cyc / 0.8;
+          const mx = VW * 0.95 - p * VW * 0.7;
+          const my = 14 + p * 110;
+          const mg = ctx.createLinearGradient(mx, my, mx + 60, my - 26);
+          mg.addColorStop(0, 'rgba(255,255,255,0.85)');
+          mg.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.strokeStyle = mg;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(mx + 60, my - 26);
+          ctx.stroke();
         }
       }
 

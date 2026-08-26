@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { simIcon } from './simIcons';
 import { Shield, Radar, Crosshair, Rocket, Swords, AlertTriangle } from 'lucide-react';
 import { PlanetSimState, SimFactionId } from '../../types/planetSim';
 import {
@@ -98,7 +99,11 @@ export const WarRoomPanel: React.FC<WarRoomPanelProps> = ({
               sim.resources.energy >= cost.energy;
             return (
               <div key={key} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex items-center gap-3">
-                <span className="text-2xl shrink-0">{def.icon}</span>
+                {simIcon(def.id) ? (
+                  <img src={simIcon(def.id)} alt={def.name} className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                ) : (
+                  <span className="text-2xl shrink-0">{def.icon}</span>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-white">{def.name}</span>
@@ -187,7 +192,11 @@ export const WarRoomPanel: React.FC<WarRoomPanelProps> = ({
                         : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <span>{def.icon}</span>
+                    {simIcon(def.id) ? (
+                      <img src={simIcon(def.id)} alt={def.name} className="w-5 h-5 rounded-full object-cover" />
+                    ) : (
+                      <span>{def.icon}</span>
+                    )}
                     <span className="truncate">{def.name}</span>
                     <span className="font-mono text-slate-500">({Math.floor(faction.strength)})</span>
                   </button>

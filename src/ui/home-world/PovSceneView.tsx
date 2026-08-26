@@ -617,6 +617,36 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
 
       ctx.restore();
 
+      // Ambient life: drifting motes / fireflies / sparks tuned per scene
+      const AMBIENCE: Record<string, { rgb: string; n: number; up: number; drift: number; size: number }> = {
+        street: { rgb: '255,214,130', n: 22, up: 10, drift: 6, size: 1.6 },
+        hangar: { rgb: '140,200,255', n: 14, up: 16, drift: 4, size: 1.3 },
+        greenhouse: { rgb: '140,255,170', n: 24, up: 8, drift: 5, size: 1.5 },
+        shop: { rgb: '220,170,255', n: 14, up: 7, drift: 4, size: 1.4 },
+        gym: { rgb: '255,190,120', n: 12, up: 14, drift: 5, size: 1.3 },
+        bank: { rgb: '255,220,150', n: 12, up: 6, drift: 3, size: 1.2 },
+        trophy: { rgb: '255,220,150', n: 14, up: 6, drift: 3, size: 1.2 },
+        warehouse: { rgb: '220,200,160', n: 14, up: 9, drift: 4, size: 1.4 },
+        command: { rgb: '120,220,255', n: 20, up: 12, drift: 6, size: 1.3 },
+      };
+      const amb = AMBIENCE[sc.id];
+      if (amb) {
+        for (let i = 0; i < amb.n; i++) {
+          const h1f = Math.sin(i * 12.9898) * 43758.5453;
+          const h1 = h1f - Math.floor(h1f);
+          const h2f = Math.sin(i * 78.233) * 12578.145;
+          const h2 = h2f - Math.floor(h2f);
+          const spanX = VW + 40;
+          const px = ((((h1 * spanX + t * amb.drift * (h2 > 0.5 ? 4 : -4)) % spanX) + spanX) % spanX) - 20;
+          const py = VH + 10 - ((h2 * (VH + 40) + t * amb.up) % (VH + 40));
+          const tw = 0.35 + 0.65 * Math.abs(Math.sin(t * 1.7 + i * 1.3));
+          ctx.fillStyle = `rgba(${amb.rgb},${(0.26 * tw).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(px, py, amb.size * (0.7 + tw * 0.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
       // vignette
       const vg = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.45, VW / 2, VH / 2, VH * 0.85);
       vg.addColorStop(0, 'transparent');

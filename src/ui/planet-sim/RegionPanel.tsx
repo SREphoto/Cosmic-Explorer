@@ -1,4 +1,5 @@
 import React from 'react';
+import { simIcon } from './simIcons';
 import { ArrowUpCircle, Compass, Lock } from 'lucide-react';
 import { PlanetSimState, SimRegionState } from '../../types/planetSim';
 import {
@@ -61,7 +62,11 @@ export const RegionPanel: React.FC<RegionPanelProps> = ({
               className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 border shadow-inner"
               style={{ backgroundColor: `${def.color}22`, borderColor: `${def.color}66` }}
             >
-              {def.icon}
+              {simIcon(def.id) ? (
+                <img src={simIcon(def.id)} alt={def.name} className="w-10 h-10 rounded-xl object-cover" />
+              ) : (
+                def.icon
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

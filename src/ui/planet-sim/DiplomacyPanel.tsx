@@ -1,4 +1,5 @@
 import React from 'react';
+import { simIcon } from './simIcons';
 import { Handshake, Gift, HeartHandshake, ShieldOff, Swords, MoonStar } from 'lucide-react';
 import { PlanetSimState, SimFactionId } from '../../types/planetSim';
 import {
@@ -59,7 +60,11 @@ export const DiplomacyPanel: React.FC<DiplomacyPanelProps> = ({
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 border"
                     style={{ backgroundColor: `${def.color}18`, borderColor: `${def.color}55` }}
                   >
-                    {def.icon}
+                    {simIcon(def.id) ? (
+                      <img src={simIcon(def.id)} alt={def.name} className="w-8 h-8 rounded-lg object-cover" />
+                    ) : (
+                      def.icon
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -185,7 +190,11 @@ export const DiplomacyPanel: React.FC<DiplomacyPanelProps> = ({
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 border"
                     style={{ backgroundColor: `${def.color}15`, borderColor: `${def.color}55` }}
                   >
-                    {def.icon}
+                    {simIcon(def.id) ? (
+                      <img src={simIcon(def.id)} alt={def.name} className="w-8 h-8 rounded-lg object-cover" />
+                    ) : (
+                      def.icon
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">

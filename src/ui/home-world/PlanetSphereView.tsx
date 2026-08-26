@@ -143,6 +143,26 @@ export const PlanetSphereView: React.FC<PlanetSphereViewProps> = ({
         ctx.arc(CX, CY, R, 0, Math.PI * 2);
         ctx.clip();
         ctx.drawImage(planetArt, CX - R, CY - R, R * 2, R * 2);
+        // Living surface: slow cloud drift + city twinkle over the painted disc
+        ctx.globalAlpha = 0.1;
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 10;
+        for (let i = 0; i < 3; i++) {
+          const a = t * 0.07 + rot.yaw * 0.3 + (i * Math.PI * 2) / 3;
+          ctx.beginPath();
+          ctx.arc(CX, CY, R * (0.34 + i * 0.22), a, a + 1.7);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < 7; i++) {
+          const lx = CX + Math.cos(i * 2.4) * R * (0.25 + (i % 3) * 0.22);
+          const ly = CY + Math.sin(i * 1.7) * R * 0.5;
+          const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * 2.2 + i * 1.9));
+          ctx.fillStyle = `rgba(253, 224, 71, ${0.2 + 0.35 * tw})`;
+          ctx.beginPath();
+          ctx.arc(lx, ly, 1.6 + tw, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       } else {
         const hi = lerpColor('#3fae7a', '#8a6b3f', pol);

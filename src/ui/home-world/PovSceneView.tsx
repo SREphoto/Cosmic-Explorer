@@ -7,6 +7,7 @@ const VW = 640;
 const VH = 420;
 
 import streetBackdropUrl from '../../assets/art/scene-street-dusk.png';
+import { SCENE_BACKDROPS } from './backdrops';
 import { getArtImage, artReady } from './art';
 import { NPC_PORTRAITS } from './portraits';
 
@@ -369,23 +370,24 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
 
       ctx.clearRect(0, 0, VW, VH);
 
-      // Painted backdrop (screen space, slow parallax) for the street scene
-      if (sceneRef.current.kind === 'street') {
-        const backdrop = getArtImage(streetBackdropUrl);
-        if (artReady(backdrop)) {
-          const scale = VH / backdrop.naturalHeight;
-          const dw = Math.max(VW + 2, backdrop.naturalWidth * scale * 1.55);
-          const span = Math.max(1, sceneRef.current.width - VW);
-          const off = (Math.max(0, Math.min(span, cam.x)) / span) * (dw - VW);
-          ctx.drawImage(backdrop, -off, 0, dw, VH);
-        }
+      // Painted backdrop (screen space, slow parallax)
+      const bdUrl0 = SCENE_BACKDROPS[sceneRef.current.id] || (sceneRef.current.kind === 'street' ? streetBackdropUrl : undefined);
+      const backdrop0 = bdUrl0 ? getArtImage(bdUrl0) : null;
+      if (artReady(backdrop0)) {
+        const scB = sceneRef.current;
+        const scale = VH / backdrop0.naturalHeight;
+        const stretch = scB.kind === 'street' ? 1.55 : 1.35;
+        const dw = Math.max(VW + 2, backdrop0.naturalWidth * scale * stretch);
+        const span = Math.max(1, scB.width - VW);
+        const off = (Math.max(0, Math.min(span, cam.x)) / span) * (dw - VW);
+        ctx.drawImage(backdrop0, -off, 0, dw, VH);
       }
 
       ctx.save();
       ctx.translate(-cam.x, cam.y);
 
       if (sc.kind === 'street') {
-        const streetArtReady = artReady(getArtImage(streetBackdropUrl));
+        const streetArtReady = artReady(backdrop0);
         if (!streetArtReady) {
         // sky
         const sky = ctx.createLinearGradient(0, 0, 0, VH);
@@ -514,6 +516,8 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
         }
       } else {
         // ---- interior ----
+        const interiorArtReady = artReady(backdrop0);
+        if (!interiorArtReady) {
         const sky = ctx.createLinearGradient(0, 0, 0, VH);
         sky.addColorStop(0, sc.palette.skyTop);
         sky.addColorStop(1, sc.palette.skyBottom);
@@ -551,10 +555,25 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
         ctx.strokeRect(460, GROUND_Y - 52, 320, 62);
 
         drawInteriorProps(sc.id, t);
+        } // end procedural interior fallback
 
-        // NPCs
+        // EXIT signage over painted interiors
+        if (interiorArtReady) {
+          for (const hs of sc.hotspots) {
+            if (hs.kind === 'door' && hs.to === 'exit') {
+              drawHoloDoor(hs.x, hs.y, hs.w, hs.h, '⬅', 'EXIT', sc.palette.accent, t);
+            }
+          }
+        }
+
+        // NPCs — portrait chips over painted art, stick figures in fallback
         for (const npcPos of sc.npcs) {
-          drawNpc(npcPos.npcId, npcPos.x, t, taskNpcsRef.current.includes(npcPos.npcId));
+          const hasTask = taskNpcsRef.current.includes(npcPos.npcId);
+          if (interiorArtReady) {
+            drawNpcChip(npcPos.npcId, npcPos.x, t, hasTask);
+          } else {
+            drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
+          }
         }
       }
 

@@ -7,6 +7,9 @@ const VW = 640;
 const VH = 420;
 
 import streetBackdropUrl from '../../assets/art/scene-street-dusk.png';
+import streetSkyUrl from '../../assets/art/layer-street-sky.png';
+import streetFarUrl from '../../assets/art/layer-street-far.png';
+import streetNearUrl from '../../assets/art/layer-street-near.png';
 import { SCENE_BACKDROPS } from './backdrops';
 import { getArtImage, artReady } from './art';
 import { NPC_PORTRAITS } from './portraits';
@@ -475,17 +478,43 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
 
       ctx.clearRect(0, 0, VW, VH);
 
-      // Painted backdrop (screen space, slow parallax)
-      const bdUrl0 = SCENE_BACKDROPS[sceneRef.current.id] || (sceneRef.current.kind === 'street' ? streetBackdropUrl : undefined);
+      // ---- Parallax depth stack (screen space) ----
+      const sc0 = sceneRef.current;
+      const span0 = Math.max(1, sc0.width - VW);
+      const cx0 = Math.max(0, Math.min(span0, cam.x));
+      const drawLayer = (
+        img: HTMLImageElement | HTMLCanvasElement | null,
+        coef: number,
+        y: number,
+        h: number,
+        srcYFrac = 0,
+        srcHFrac = 1
+      ) => {
+        if (!img) return;
+        const iw = img instanceof HTMLImageElement ? img.naturalWidth : img.width;
+        const ih = img instanceof HTMLImageElement ? img.naturalHeight : img.height;
+        if (!iw || !ih) return;
+        const dw = Math.max((iw / ih) * h, VW + span0 * coef);
+        ctx.drawImage(img, 0, ih * srcYFrac, iw, ih * srcHFrac, -cx0 * coef, y, dw, h);
+      };
+      const bdUrl0 = SCENE_BACKDROPS[sc0.id] || (sc0.kind === 'street' ? streetBackdropUrl : undefined);
       const backdrop0 = bdUrl0 ? getArtImage(bdUrl0) : null;
-      if (artReady(backdrop0)) {
-        const scB = sceneRef.current;
-        const scale = VH / backdrop0.naturalHeight;
-        const stretch = scB.kind === 'street' ? 1.55 : 1.35;
-        const dw = Math.max(VW + 2, backdrop0.naturalWidth * scale * stretch);
-        const span = Math.max(1, scB.width - VW);
-        const off = (Math.max(0, Math.min(span, cam.x)) / span) * (dw - VW);
-        ctx.drawImage(backdrop0, -off, 0, dw, VH);
+      if (sc0.kind === 'street') {
+        const sky = getArtImage(streetSkyUrl);
+        const hasSky = artReady(sky);
+        if (hasSky) drawLayer(sky, 0.1, 0, VH);
+        const far = getChromaSprite(streetFarUrl);
+        if (hasSky && far) drawLayer(far, 0.3, VH * 0.08, VH * 0.58);
+        if (artReady(backdrop0)) {
+          if (hasSky) {
+            // buildings band only — sky + far silhouettes show above the roofs
+            drawLayer(backdrop0, 0.6, VH * 0.28, VH * 0.72, 0.3, 0.7);
+          } else {
+            drawLayer(backdrop0, 0.6, 0, VH);
+          }
+        }
+      } else if (artReady(backdrop0)) {
+        drawLayer(backdrop0, 0.5, 0, VH);
       }
 
       ctx.save();
@@ -713,6 +742,23 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.fillStyle = `rgba(${amb.rgb},${(0.26 * tw).toFixed(3)})`;
           ctx.beginPath();
           ctx.arc(px, py, amb.size * (0.7 + tw * 0.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // ---- foreground depth layer (moves faster than the world) ----
+      if (sc.kind === 'street') {
+        const near = getChromaSprite(streetNearUrl);
+        if (near) drawLayer(near, 1.35, VH * 0.62, VH * 0.44);
+      } else {
+        ctx.fillStyle = 'rgba(2,6,23,0.5)';
+        const fspan = VW + span0 * 1.3;
+        for (let i = 0; i < 6; i++) {
+          const fx = ((i * 211) % fspan) - cx0 * 1.3;
+          if (fx < -90 || fx > VW + 90) continue;
+          const fh = 24 + (i % 3) * 14;
+          ctx.beginPath();
+          ctx.ellipse(fx, VH + 8, 46 + (i % 4) * 12, fh, 0, Math.PI, 0);
           ctx.fill();
         }
       }

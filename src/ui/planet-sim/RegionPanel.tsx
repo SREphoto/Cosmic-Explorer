@@ -175,7 +175,11 @@ export const RegionPanel: React.FC<RegionPanelProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xl shrink-0">{s.icon}</span>
+                  {simIcon(s.id) ? (
+                    <img src={simIcon(s.id)} alt={s.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                  ) : (
+                    <span className="text-xl shrink-0">{s.icon}</span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-white truncate">{s.name}</span>

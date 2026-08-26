@@ -638,6 +638,22 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.fillText('QUESTS', bx, hs.y + 76);
         }
 
+        // chimney smoke — the town cooks and heats
+        if (streetArtReady) {
+          for (const cxp of [310, 1520, 2080]) {
+            for (let k = 0; k < 5; k++) {
+              const rise = (t * 16 + k * 26) % 130;
+              const sy = 150 - rise;
+              const sx = cxp + Math.sin(t * 0.8 + k * 1.7 + cxp) * (4 + rise * 0.12);
+              const a = Math.max(0, 0.16 * (1 - rise / 130));
+              ctx.fillStyle = `rgba(226,232,240,${a.toFixed(3)})`;
+              ctx.beginPath();
+              ctx.arc(sx, sy, 4 + rise * 0.09, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+
         // NPCs — portrait chips over painted art, stick figures in fallback
         for (const npcPos of sc.npcs) {
           if (npcPos.x < cam.x - 60 || npcPos.x > cam.x + VW + 60) continue;
@@ -829,6 +845,20 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
           ctx.lineTo(mx + 60, my - 26);
           ctx.stroke();
         }
+      }
+
+      // dusk birds
+      ctx.strokeStyle = 'rgba(226,232,240,0.5)';
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < 3; i++) {
+        const bx = ((t * (34 + i * 9) + i * 300) % (VW + 80)) - 40;
+        const by = 52 + i * 22 + Math.sin(t * 1.6 + i * 2) * 7;
+        const fl = Math.sin(t * 7 + i * 2) * 2.2;
+        ctx.beginPath();
+        ctx.moveTo(bx - 6, by);
+        ctx.quadraticCurveTo(bx - 3, by - 3 - fl, bx, by);
+        ctx.quadraticCurveTo(bx + 3, by - 3 - fl, bx + 6, by);
+        ctx.stroke();
       }
 
       // vignette

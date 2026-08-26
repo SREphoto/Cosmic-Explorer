@@ -12,6 +12,16 @@ import luminari from '../../assets/art/icons/faction-luminari.png';
 import verdantCircle from '../../assets/art/icons/faction-verdant-circle.png';
 import tradeGuild from '../../assets/art/icons/faction-trade-guild.png';
 import voidRaiders from '../../assets/art/icons/faction-void-raiders.png';
+import structSolar from '../../assets/art/icons/struct-solar.png';
+import structHydro from '../../assets/art/icons/struct-hydro.png';
+import structExtractor from '../../assets/art/icons/struct-extractor.png';
+import structFoundry from '../../assets/art/icons/struct-foundry.png';
+import structHabitat from '../../assets/art/icons/struct-habitat.png';
+import structLab from '../../assets/art/icons/struct-lab.png';
+import structBeacon from '../../assets/art/icons/struct-beacon.png';
+import structScrubber from '../../assets/art/icons/struct-scrubber.png';
+import structGrove from '../../assets/art/icons/struct-grove.png';
+import structTurret from '../../assets/art/icons/struct-turret.png';
 
 export const REGION_ICONS: Record<string, string> = {
   heartland,
@@ -29,5 +39,18 @@ export const FACTION_ICONS: Record<string, string> = {
   VOID_RAIDERS: voidRaiders,
 };
 
+export const STRUCTURE_ICONS: Record<string, string> = {
+  SOLAR_ARRAY: structSolar,
+  HYDRO_FARM: structHydro,
+  EXTRACTOR: structExtractor,
+  FOUNDRY: structFoundry,
+  HABITAT_DOME: structHabitat,
+  RESEARCH_LAB: structLab,
+  TRADE_BEACON: structBeacon,
+  SCRUBBER: structScrubber,
+  GROVE: structGrove,
+  TURRET_POD: structTurret,
+};
+
 export const simIcon = (id: string): string | undefined =>
-  FACTION_ICONS[id] || REGION_ICONS[id];
+  FACTION_ICONS[id] || REGION_ICONS[id] || STRUCTURE_ICONS[id];

@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { simIcon } from './planet-sim/simIcons';
+import { getArtImage } from './home-world/art';
 import {
   Play,
   Swords,
@@ -525,10 +527,27 @@ export const HomePlanetScreen: React.FC<HomePlanetScreenProps> = ({
         ctx.lineWidth = isSelected ? 3 : 2;
         ctx.stroke();
 
-        ctx.font = '22px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(def.icon, mxp, myp + 1);
+        const markerIconUrl = simIcon(def.id);
+        const markerIconImg = markerIconUrl ? getArtImage(markerIconUrl) : null;
+        if (markerIconImg && markerIconImg.complete && markerIconImg.naturalWidth > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(mxp, myp, MARKER_R * 0.86, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(
+            markerIconImg,
+            mxp - MARKER_R * 0.86,
+            myp - MARKER_R * 0.86,
+            MARKER_R * 1.72,
+            MARKER_R * 1.72
+          );
+          ctx.restore();
+        } else {
+          ctx.font = '22px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(def.icon, mxp, myp + 1);
+        }
 
         // development badge
         ctx.fillStyle = 'rgba(2,6,23,0.9)';

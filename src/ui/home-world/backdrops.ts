@@ -8,6 +8,9 @@ import greenhouse from '../../assets/art/scene-greenhouse.png';
 import shop from '../../assets/art/scene-shop.png';
 import gym from '../../assets/art/scene-gym.png';
 import bank from '../../assets/art/scene-bank.png';
+import trophy from '../../assets/art/scene-trophy.png';
+import warehouse from '../../assets/art/scene-warehouse.png';
+import command from '../../assets/art/scene-command.png';
 
 export const SCENE_BACKDROPS: Record<string, string> = {
   street,
@@ -16,4 +19,7 @@ export const SCENE_BACKDROPS: Record<string, string> = {
   shop,
   gym,
   bank,
+  trophy,
+  warehouse,
+  command,
 };

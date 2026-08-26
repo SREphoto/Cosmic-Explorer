@@ -14,6 +14,13 @@ import spriteJuno from '../../assets/art/sprite-juno.png';
 import spriteTownsfolk1 from '../../assets/art/sprite-townsfolk1.png';
 import spriteTownsfolk2 from '../../assets/art/sprite-townsfolk2.png';
 import spriteMechanic from '../../assets/art/sprite-mechanic.png';
+import spriteShopkeeper from '../../assets/art/sprite-shopkeeper.png';
+import spriteTrainer from '../../assets/art/sprite-trainer.png';
+import spriteGardener from '../../assets/art/sprite-gardener.png';
+import spriteTeller from '../../assets/art/sprite-teller.png';
+import spriteKeeper from '../../assets/art/sprite-keeper.png';
+import spriteCurator from '../../assets/art/sprite-curator.png';
+import spriteOfficer from '../../assets/art/sprite-officer.png';
 
 export const NPC_PORTRAITS: Record<string, string> = {
   quest_giver: juno,
@@ -24,6 +31,9 @@ export const NPC_PORTRAITS: Record<string, string> = {
   gardener: gardener,
   trainer: trainer,
   teller: teller,
+  keeper: spriteKeeper,
+  curator: spriteCurator,
+  officer: spriteOfficer,
 };
 
 /**
@@ -35,4 +45,11 @@ export const NPC_SPRITES: Record<string, string> = {
   townsfolk_1: spriteTownsfolk1,
   townsfolk_2: spriteTownsfolk2,
   mechanic: spriteMechanic,
+  shopkeeper: spriteShopkeeper,
+  trainer: spriteTrainer,
+  gardener: spriteGardener,
+  teller: spriteTeller,
+  keeper: spriteKeeper,
+  curator: spriteCurator,
+  officer: spriteOfficer,
 };

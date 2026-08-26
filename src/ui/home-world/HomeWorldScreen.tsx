@@ -396,7 +396,7 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
                     <img
                       src={NPC_PORTRAITS[dialogueNpc.id]}
                       alt={dialogueNpc.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-top"
                     />
                   ) : (
                     dialogueNpc.icon

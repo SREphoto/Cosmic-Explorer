@@ -687,7 +687,7 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
             drawNpc(npcPos.npcId, npcPos.x, t, hasTask);
           }
         }
-        if (streetArtReady) drawWanderers(t, [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2]);
+        if (streetArtReady) drawWanderers(t, [NPC_SPRITES.townsfolk_1, NPC_SPRITES.townsfolk_2, NPC_SPRITES.keeper]);
       } else {
         // ---- interior ----
         const interiorArtReady = artReady(backdrop0);
@@ -912,6 +912,49 @@ export const PovSceneView: React.FC<PovSceneViewProps> = ({
         ctx.quadraticCurveTo(bx + 3, by - 3 - fl, bx + 6, by);
         ctx.stroke();
       }
+
+      // sky traffic: a rocket climbing from the hangar now and then
+      const skyT = t % 23;
+      if (skyT < 2.2) {
+        const p = skyT / 2.2;
+        const rx = VW * 0.72 + p * 30;
+        const ry = VH * 0.9 - p * VH * 1.05;
+        const tg = ctx.createLinearGradient(rx, ry, rx - 6, ry + 46);
+        tg.addColorStop(0, 'rgba(255,220,150,0.9)');
+        tg.addColorStop(1, 'rgba(255,220,150,0)');
+        ctx.strokeStyle = tg;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(rx - 6, ry + 46);
+        ctx.stroke();
+        ctx.fillStyle = '#fef3c7';
+        ctx.beginPath();
+        ctx.arc(rx, ry, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // …and a trade skiff gliding the other way
+      const skT = (t + 9) % 31;
+      if (skT < 6) {
+        const p = skT / 6;
+        const sx = VW + 60 - p * (VW + 120);
+        const sy = 96 + Math.sin(p * 6) * 4;
+        ctx.fillStyle = 'rgba(15,23,42,0.85)';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, 14, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(125,211,252,0.8)';
+        ctx.fillRect(sx - 4, sy - 3, 7, 2.4);
+        ctx.fillStyle = `rgba(253,224,71,${0.4 + 0.4 * Math.sin(t * 6)})`;
+        ctx.beginPath();
+        ctx.arc(sx + 12, sy, 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // slow dusk<->night breathing
+      const night = 0.5 + 0.5 * Math.sin(t * 0.02);
+      ctx.fillStyle = `rgba(2,6,23,${(night * 0.16).toFixed(3)})`;
+      ctx.fillRect(0, 0, VW, VH);
 
       // vignette
       const vg = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.45, VW / 2, VH / 2, VH * 0.85);

@@ -13,7 +13,15 @@
         align-items: center; justify-content: center; gap: 14px;
         background: radial-gradient(circle at 50% 30%, #0f172a, #020617);
         color: #e2e8f0; font-family: system-ui, sans-serif; text-align: center;
+        position: relative; overflow: hidden;
       }
+      .boot-fallback .art {
+        position: absolute; inset: 0;
+        background: url(art/keyart-boot.png) center 68% / cover no-repeat;
+        opacity: 0; animation: bootArtIn 1.4s ease 0.1s forwards;
+      }
+      .boot-fallback > :not(.art) { position: relative; }
+      @keyframes bootArtIn { to { opacity: 0.55; } }
       .boot-fallback .orb {
         width: 84px; height: 84px; border-radius: 50%;
         background: radial-gradient(circle at 32% 30%, #34d399, #0d4531 70%);
@@ -73,6 +81,7 @@
   <body>
     <div id="root">
       <div class="boot-fallback">
+        <div class="art"></div>
         <div class="orb"></div>
         <h1>COSMIC EXPLORER</h1>
         <p>Waking your home planet…</p>

@@ -99,18 +99,6 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
     );
   }, [weather]);
 
-  // Per-building music mood
-  useEffect(() => {
-    const mood: 'warm' | 'bright' | 'low' =
-      view.mode === 'scene' && scene
-        ? ['hangar', 'command', 'warehouse'].includes(scene.id)
-          ? 'low'
-          : scene.id === 'greenhouse'
-            ? 'bright'
-            : 'warm'
-        : 'warm';
-    audioEngine.setTownMood(mood);
-  }, [view.mode, scene?.id]);
   const later = (fn: () => void, ms: number) => timeoutsRef.current.push(setTimeout(fn, ms));
 
   // -------------------------------------------------------------------------
@@ -364,6 +352,19 @@ export const HomeWorldScreen: React.FC<HomeWorldScreenProps> = ({
     : '—';
 
   const scene = view.mode === 'scene' ? SCENE_DEFS[view.sceneId] : null;
+
+  // Per-building music mood
+  useEffect(() => {
+    const mood: 'warm' | 'bright' | 'low' =
+      view.mode === 'scene' && scene
+        ? ['hangar', 'command', 'warehouse'].includes(scene.id)
+          ? 'low'
+          : scene.id === 'greenhouse'
+            ? 'bright'
+            : 'warm'
+        : 'warm';
+    audioEngine.setTownMood(mood);
+  }, [view.mode, scene?.id]);
   const taskNpcIds = currentTask ? [currentTask.giverNpcId] : [];
   const dialogueNpc = dialogue ? npcById(dialogue.npcId) : null;
 

@@ -4,10 +4,89 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cosmic Explorer</title>
+    <style>
+      /* Pre-mount fallback: the page must never appear blank white. */
+      html, body { margin: 0; padding: 0; background: #020617; }
+      #root:not(:has(*)), #root:empty { min-height: 100vh; }
+      .boot-fallback {
+        min-height: 100vh; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px;
+        background: radial-gradient(circle at 50% 30%, #0f172a, #020617);
+        color: #e2e8f0; font-family: system-ui, sans-serif; text-align: center;
+        position: relative; overflow: hidden;
+      }
+      .boot-fallback .art {
+        position: absolute; inset: 0;
+        background: url(art/keyart-boot.png) center 68% / cover no-repeat;
+        opacity: 0; animation: bootArtIn 1.4s ease 0.1s forwards;
+      }
+      .boot-fallback > :not(.art) { position: relative; }
+      @keyframes bootArtIn { to { opacity: 0.55; } }
+      .boot-fallback .orb {
+        width: 84px; height: 84px; border-radius: 50%;
+        background: radial-gradient(circle at 32% 30%, #34d399, #0d4531 70%);
+        box-shadow: 0 0 48px rgba(52, 211, 153, 0.35);
+        animation: bootPulse 1.6s ease-in-out infinite;
+      }
+      @keyframes bootPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+      .boot-fallback h1 { font-size: 20px; margin: 0; letter-spacing: 2px; }
+      .boot-fallback p { font-size: 12px; color: #64748b; margin: 0; }
+    </style>
+    <script>
+      /* Pre-module watchdog: classic scripts evaluate BEFORE the module graph,
+         so this can catch and report failures that happen while the module
+         bundle itself is loading/evaluating (which the in-React crash handler
+         can never see). After 7s without a React mount, it paints a visible
+         diagnostic report on any device. */
+      (function () {
+        var diag = [];
+        function push(s) { diag.push(s); if (diag.length > 14) diag.shift(); }
+        window.addEventListener('error', function (e) {
+          push('error: ' + (e.message || 'unknown') + (e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : ''));
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          push('rejection: ' + String(e && e.reason ? (e.reason.message || e.reason) : e));
+        });
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            if (!document.querySelector('.boot-fallback')) return; // React mounted fine
+            var scripts = document.querySelectorAll('script[type="module"][src]');
+            var scr = null;
+            for (var i = 0; i < scripts.length; i++) {
+              var s = scripts[i].getAttribute('src') || '';
+              if (s.indexOf('@vite') === -1 && s.indexOf('react-refresh') === -1) { scr = s; }
+            }
+            var src = scr || '(no module script found)';
+            var finish = function (extra) {
+              var box = document.createElement('pre');
+              box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;background:#0f172a;color:#fca5a5;border:1px solid #475569;border-radius:12px;padding:12px;font:11px/1.5 monospace;white-space:pre-wrap;word-break:break-word;z-index:9999;max-height:48vh;overflow:auto;';
+              box.textContent =
+                '⚠️ Boot watchdog — the game script did not start.\n' +
+                'Script: ' + src + '\n' + (extra || '') +
+                'Device: ' + navigator.userAgent + '\n' +
+                'Captured events:\n' + (diag.length ? diag.join('\n') : '  (none)') +
+                '\n\nPlease screenshot this and send it to the dev team.';
+              document.body.appendChild(box);
+            };
+            if (src && window.fetch) {
+              fetch(src, { method: 'HEAD' })
+                .then(function (r) { finish('Fetch: HTTP ' + r.status + ', ' + r.headers.get('content-type') + '\n'); })
+                .catch(function (err) { finish('Fetch FAILED: ' + err + '\n'); });
+            } else { finish(''); }
+          }, 7000);
+        });
+      })();
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-fallback">
+        <div class="art"></div>
+        <div class="orb"></div>
+        <h1>COSMIC EXPLORER</h1>
+        <p>Waking your home planet…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

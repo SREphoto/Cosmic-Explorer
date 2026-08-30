@@ -1,61 +1,65 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  X,
-  Home,
-  Sprout,
-  Package,
-  Wrench,
-  ShoppingBag,
-  CheckCircle2,
-  Lock,
-  ChevronRight,
-  TrendingUp,
-  Clock,
-  Droplets,
-  Plus,
-  RefreshCw,
-  Edit3,
-  CloudUpload,
-  Layers,
+  ArrowLeft,
   ArrowUpCircle,
-  Compass,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CloudUpload,
+  Edit3,
+  Home,
+  Info,
+  Lock,
+  Package,
   Radio,
   Rocket,
-  Gift,
+  ShoppingBag,
+  Sparkles,
+  Sprout,
+  Star,
   Timer,
-  Check
+  Wrench,
+  X
 } from 'lucide-react';
 import {
-  UserSavedData,
-  HomePlanetData,
-  HomeSeedType,
-  HomeGardenPlot,
-  HomePlacedFurniture,
   HomeFurnitureItem,
-  SpaceTravelerVisit,
-  SpaceTravelerOffer
+  HomeGardenPlot,
+  HomePlanetData,
+  HomePlacedFurniture,
+  HomeSeedType,
+  SpaceTravelerOffer,
+  UserSavedData
 } from '../types/game';
 import {
-  HOME_PLANET_BIOMES,
-  HABITAT_UPGRADES,
-  STORAGE_UPGRADES,
-  GREENHOUSE_UPGRADES,
-  GARDEN_SEEDS,
   CRAFTABLE_HOME_TOOLS,
+  GARDEN_SEEDS,
+  GREENHOUSE_UPGRADES,
+  HABITAT_UPGRADES,
   HOME_FURNITURE_CATALOG,
-  generateSpaceTravelerVisit,
-  homeUpgradeCostMultiplier,
+  HOME_PLANET_BIOMES,
+  STORAGE_UPGRADES,
+  calculateSkillBonuses,
   gardenGrowthMultiplier,
   gardenHarvestMultiplier,
+  generateSpaceTravelerVisit,
   hasCraftedTool,
-  calculateSkillBonuses
+  homeUpgradeCostMultiplier
 } from '../core/Config';
 import { audioEngine } from '../core/AudioEngine';
-import { FirebaseService, auth } from '../core/firebase';
 import { StorageManager } from '../core/Storage';
-import { VisualGardenLayout } from './VisualGardenLayout';
-import { spriteAtlas, BIOME_SPRITES, FURNITURE_SPRITES, HABITAT_SPRITES, PLANT_SPRITES, TOOL_SPRITES, RESOURCE_SPRITES, STORAGE_SPRITE } from '../core/SpriteAtlas';
+import {
+  BIOME_SPRITES,
+  COSTUME_SPRITES,
+  COSTUME_WALK_FRAMES,
+  FURNITURE_SPRITES,
+  HABITAT_SPRITES,
+  PLANT_SPRITES,
+  RESOURCE_SPRITES,
+  STORAGE_SPRITE,
+  TOOL_SPRITES
+} from '../core/SpriteAtlas';
 import { ItemSprite } from '../components/ItemSprite';
+import galaxyBgUrl from '../assets/images/galaxy_cosmic_bg_1786680029303.jpg';
 
 interface HomePlanetModalProps {
   savedData: UserSavedData;
@@ -63,1692 +67,1340 @@ interface HomePlanetModalProps {
   onUpdateSavedData: (updated: UserSavedData) => void;
 }
 
-type HomeTab = 'HABITAT' | 'GARDEN' | 'VISUAL_GARDEN' | 'STORAGE' | 'WORKSHOP' | 'SHOP' | 'TRAVELER';
+type SanctuaryScene = 'TOWN' | 'HABITAT' | 'GREENHOUSE' | 'VAULT' | 'WORKSHOP' | 'MARKET' | 'TRAVELER';
+type ResourceCost = {
+  timber?: number;
+  quartz?: number;
+  alloys?: number;
+  plasmaCells?: number;
+  starDust?: number;
+  stars?: number;
+  diamonds?: number;
+};
 
-export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({
-  savedData,
-  onClose,
-  onUpdateSavedData
-}) => {
-  const [activeTab, setActiveTab] = useState<HomeTab>('HABITAT');
-  const [selectedSeedType, setSelectedSeedType] = useState<HomeSeedType>('STAR_DAISY');
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [newPlanetName, setNewPlanetName] = useState('');
-  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+type TownBuilding = {
+  scene: SanctuaryScene;
+  x: number;
+  name: string;
+  subtitle: string;
+  accent: string;
+  kind: 'traveler' | 'greenhouse' | 'habitat' | 'workshop' | 'vault' | 'market';
+};
 
-  // Initialize Home Planet state if not present
-  const defaultHomePlanet: HomePlanetData = {
-    id: 'home_sanctuary_alpha',
-    name: 'Sanctuary Prime',
-    biomeId: 'VERDANT',
-    biome: 'VERDANT',
-    habitatTier: 1,
-    storageTier: 1,
-    greenhouseTier: 1,
-    workshopTier: 1,
-    supplies: {
-      timber: 20,
-      quartz: 15,
-      alloys: 10,
-      plasmaCells: 5,
-      starDust: 0
+const TOWN_WIDTH = 2180;
+const TOWN_BUILDINGS: TownBuilding[] = [
+  { scene: 'TRAVELER', x: 185, name: 'Landing Pad', subtitle: 'Talk & trade', accent: '#c084fc', kind: 'traveler' },
+  { scene: 'GREENHOUSE', x: 535, name: 'Astral Greenhouse', subtitle: 'Plant & harvest', accent: '#34d399', kind: 'greenhouse' },
+  { scene: 'HABITAT', x: 900, name: 'The Habitat', subtitle: 'Home & grounds', accent: '#fbbf24', kind: 'habitat' },
+  { scene: 'WORKSHOP', x: 1270, name: 'Meteor Workshop', subtitle: 'Craft tools', accent: '#fb7185', kind: 'workshop' },
+  { scene: 'VAULT', x: 1620, name: 'Cargo Vault', subtitle: 'Store supplies', accent: '#38bdf8', kind: 'vault' },
+  { scene: 'MARKET', x: 1970, name: 'Stardust Market', subtitle: 'Browse decor', accent: '#f472b6', kind: 'market' }
+];
+
+const DEFAULT_HOME_PLANET: HomePlanetData = {
+  id: 'home_sanctuary_alpha',
+  name: 'Sanctuary Prime',
+  biomeId: 'VERDANT',
+  biome: 'VERDANT',
+  habitatTier: 1,
+  storageTier: 1,
+  greenhouseTier: 1,
+  workshopTier: 1,
+  supplies: { timber: 20, quartz: 15, alloys: 10, plasmaCells: 5, starDust: 0 },
+  gardenPlots: [
+    {
+      id: 'plot_1',
+      seedType: 'STAR_DAISY',
+      seedName: 'Starlight Daisy',
+      icon: '🌼',
+      plantedAtTimestamp: Date.now() - 30000,
+      isHarvestable: false,
+      growthProgress: 0.75
     },
-    gardenPlots: [
-      { id: 'plot_1', seedType: 'STAR_DAISY', seedName: 'Starlight Daisy', icon: '🌼', plantedAtTimestamp: Date.now() - 30000, isHarvestable: false, growthProgress: 0.75 },
-      { id: 'plot_2', seedType: null, plantedAtTimestamp: 0, isHarvestable: false, growthProgress: 0 }
-    ],
-    craftedTools: [],
-    placedFurniture: [
-      { id: 'furn_1', itemId: 'FURN_FIREPIT', name: 'Stardust Firepit', category: 'DECOR', angle: 0.4, placedAngle: 0.4, icon: '🔥', color: '#f97316' },
-      { id: 'furn_2', itemId: 'FURN_LANTERNS', name: 'Bioluminescent Glow Lanterns', category: 'LIGHTING', angle: 2.2, placedAngle: 2.2, icon: '🏮', color: '#facc15' }
-    ],
-    unlockedDecorIds: ['FURN_FIREPIT', 'FURN_LANTERNS'],
-    spaceTraveler: generateSpaceTravelerVisit(),
-    lastSavedAt: Date.now()
-  };
-
-  const [homePlanet, setHomePlanet] = useState<HomePlanetData>(() => {
-    const hp = savedData.homePlanet || defaultHomePlanet;
-    // Check if space traveler visit expired or missing
-    if (!hp.spaceTraveler || Date.now() > hp.spaceTraveler.departureTimestamp) {
-      return {
-        ...hp,
-        spaceTraveler: generateSpaceTravelerVisit()
-      };
+    { id: 'plot_2', seedType: null, plantedAtTimestamp: 0, isHarvestable: false, growthProgress: 0 }
+  ],
+  craftedTools: [],
+  placedFurniture: [
+    {
+      id: 'furn_1',
+      itemId: 'FURN_FIREPIT',
+      name: 'Stardust Firepit',
+      category: 'DECOR',
+      angle: 0.4,
+      placedAngle: 0.4,
+      icon: '🔥',
+      color: '#f97316'
+    },
+    {
+      id: 'furn_2',
+      itemId: 'FURN_LANTERNS',
+      name: 'Bioluminescent Glow Lanterns',
+      category: 'LIGHTING',
+      angle: 2.2,
+      placedAngle: 2.2,
+      icon: '🏮',
+      color: '#facc15'
     }
-    return hp;
+  ],
+  unlockedDecorIds: ['FURN_FIREPIT', 'FURN_LANTERNS'],
+  spaceTraveler: generateSpaceTravelerVisit(),
+  lastSavedAt: Date.now()
+};
+
+const RESOURCE_LABELS: Array<{ key: 'timber' | 'quartz' | 'alloys' | 'plasmaCells'; label: string; src: string; color: string }> = [
+  { key: 'timber', label: 'Timber', src: RESOURCE_SPRITES.timber, color: '#fbbf24' },
+  { key: 'quartz', label: 'Quartz', src: RESOURCE_SPRITES.quartz, color: '#c084fc' },
+  { key: 'alloys', label: 'Alloys', src: RESOURCE_SPRITES.alloys, color: '#22d3ee' },
+  { key: 'plasmaCells', label: 'Plasma', src: RESOURCE_SPRITES.plasma, color: '#fb7185' }
+];
+
+function sceneName(scene: SanctuaryScene): string {
+  return TOWN_BUILDINGS.find((building) => building.scene === scene)?.name || 'Sanctuary Town';
+}
+
+function formatCost(cost: ResourceCost): Array<{ key: string; label: string; value: number; icon: string }> {
+  const rows = [
+    { key: 'timber', label: 'Timber', value: cost.timber || 0, icon: '🪵' },
+    { key: 'quartz', label: 'Quartz', value: cost.quartz || 0, icon: '💎' },
+    { key: 'alloys', label: 'Alloys', value: cost.alloys || 0, icon: '⚙️' },
+    { key: 'plasmaCells', label: 'Plasma', value: cost.plasmaCells || 0, icon: '🔥' },
+    { key: 'starDust', label: 'Dust', value: cost.starDust || 0, icon: '✨' },
+    { key: 'stars', label: 'Stars', value: cost.stars || 0, icon: '⭐' },
+    { key: 'diamonds', label: 'Diamonds', value: cost.diamonds || 0, icon: '💠' }
+  ];
+  return rows.filter((row) => row.value > 0);
+}
+
+const CostLine: React.FC<{ cost: ResourceCost; canAfford?: boolean }> = ({ cost, canAfford = true }) => {
+  const entries = formatCost(cost);
+  if (!entries.length) return <span className="sanctuary-free">Ready</span>;
+  return (
+    <div className="sanctuary-cost-line">
+      {entries.map((entry) => (
+        <span key={entry.key} className={canAfford ? '' : 'is-short'} title={entry.label}>
+          {entry.icon} {entry.value}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+interface SceneObjectProps {
+  id?: string;
+  label: string;
+  hint?: string;
+  src?: string;
+  fallback?: string;
+  accent?: string;
+  selected?: boolean;
+  locked?: boolean;
+  scale?: 'small' | 'medium' | 'large';
+  onClick: () => void;
+}
+
+const SceneObject: React.FC<SceneObjectProps> = ({
+  label,
+  hint,
+  src,
+  fallback,
+  accent = '#38bdf8',
+  selected,
+  locked,
+  scale = 'medium',
+  onClick
+}) => (
+  <button
+    type="button"
+    className={`sanctuary-scene-object size-${scale}${selected ? ' is-selected' : ''}${locked ? ' is-locked' : ''}`}
+    style={{ '--object-accent': accent } as React.CSSProperties}
+    onClick={onClick}
+    aria-label={`${label}${hint ? `, ${hint}` : ''}`}
+  >
+    <span className="sanctuary-object-glow" />
+    <span className="sanctuary-object-art">
+      {src ? <ItemSprite src={src} fallback={fallback} alt="" /> : <span className="sanctuary-object-emoji">{fallback}</span>}
+    </span>
+    {locked && <Lock className="sanctuary-object-lock" />}
+    <span className="sanctuary-object-label">{label}</span>
+    {hint && <span className="sanctuary-object-hint">{hint}</span>}
+  </button>
+);
+
+interface InteractionDockProps {
+  eyebrow?: string;
+  title: string;
+  text: string;
+  portrait?: React.ReactNode;
+  onDismiss: () => void;
+  children?: React.ReactNode;
+}
+
+const InteractionDock: React.FC<InteractionDockProps> = ({ eyebrow = 'INTERACT', title, text, portrait, onDismiss, children }) => (
+  <section className="sanctuary-dialogue" aria-live="polite">
+    <button className="sanctuary-dialogue-close" onClick={onDismiss} aria-label="Close interaction">
+      <X />
+    </button>
+    {portrait && <div className="sanctuary-dialogue-portrait">{portrait}</div>}
+    <div className="sanctuary-dialogue-copy">
+      <span className="sanctuary-dialogue-eyebrow">{eyebrow}</span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </div>
+    {children && <div className="sanctuary-dialogue-actions">{children}</div>}
+  </section>
+);
+
+const BuildingArt: React.FC<{ building: TownBuilding; habitatTier: number; travelerIcon?: string }> = ({ building, habitatTier, travelerIcon }) => {
+  if (building.kind === 'habitat') {
+    return <ItemSprite src={HABITAT_SPRITES[habitatTier]} fallback="🏡" className="sanctuary-building-sprite habitat" alt="" />;
+  }
+  if (building.kind === 'vault') {
+    return <ItemSprite src={STORAGE_SPRITE} fallback="🏭" className="sanctuary-building-sprite" alt="" />;
+  }
+  if (building.kind === 'greenhouse') {
+    return (
+      <div className="sanctuary-greenhouse-art">
+        <span className="greenhouse-dome" />
+        <ItemSprite src={PLANT_SPRITES.COSMIC_LOTUS} fallback="🪷" alt="" />
+        <ItemSprite src={PLANT_SPRITES.STAR_DAISY} fallback="🌼" alt="" />
+        <ItemSprite src={PLANT_SPRITES.MOON_ORCHID} fallback="🌸" alt="" />
+      </div>
+    );
+  }
+  if (building.kind === 'traveler') {
+    return (
+      <div className="sanctuary-landing-art">
+        <span className="landing-beam" />
+        <span>{travelerIcon || '🛸'}</span>
+      </div>
+    );
+  }
+  if (building.kind === 'workshop') {
+    return (
+      <div className="sanctuary-building-facade workshop-facade">
+        <ItemSprite src={TOOL_SPRITES.GRAVITON_HAMMER} fallback="🔨" alt="" />
+        <span className="facade-door" />
+        <span className="facade-window" />
+      </div>
+    );
+  }
+  return (
+    <div className="sanctuary-building-facade market-facade">
+      <ItemSprite src={FURNITURE_SPRITES.FURN_STAR_GLOBE} fallback="🔮" alt="" />
+      <span className="market-awning" />
+      <span className="facade-door" />
+    </div>
+  );
+};
+
+export const HomePlanetModal: React.FC<HomePlanetModalProps> = ({ savedData, onClose, onUpdateSavedData }) => {
+  const initialPlanet = savedData.homePlanet || DEFAULT_HOME_PLANET;
+  const [homePlanet, setHomePlanet] = useState<HomePlanetData>(() => {
+    if (!initialPlanet.spaceTraveler || Date.now() > initialPlanet.spaceTraveler.departureTimestamp) {
+      return { ...initialPlanet, spaceTraveler: generateSpaceTravelerVisit() };
+    }
+    return initialPlanet;
   });
+  const [scene, setScene] = useState<SanctuaryScene>('TOWN');
+  const [selectedObject, setSelectedObject] = useState<string | null>(null);
+  const [selectedSeed, setSelectedSeed] = useState<HomeSeedType>('STAR_DAISY');
+  const [avatarX, setAvatarX] = useState(850);
+  const [facing, setFacing] = useState<1 | -1>(1);
+  const [walkFrame, setWalkFrame] = useState(0);
+  const [isWalking, setIsWalking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [clock, setClock] = useState(Date.now());
+  const [renameValue, setRenameValue] = useState(homePlanet.name);
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  const townViewportRef = useRef<HTMLDivElement | null>(null);
+  const pressedKeysRef = useRef(new Set<string>());
+  const touchDirectionRef = useRef<-1 | 0 | 1>(0);
+  const lastWalkFrameRef = useRef(0);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const starDustBalance = savedData.totalStarDust || savedData.starDustCurrency || 0;
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rotationAngleRef = useRef<number>(0);
-  const animFrameRef = useRef<number | null>(null);
+  const biome = HOME_PLANET_BIOMES.find((item) => item.id === (homePlanet.biomeId || homePlanet.biome)) || HOME_PLANET_BIOMES[0];
+  const currentHabitat = HABITAT_UPGRADES.find((item) => item.tier === homePlanet.habitatTier) || HABITAT_UPGRADES[0];
+  const currentStorage = STORAGE_UPGRADES.find((item) => item.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0];
+  const currentGreenhouse = GREENHOUSE_UPGRADES.find((item) => item.tier === homePlanet.greenhouseTier) || GREENHOUSE_UPGRADES[0];
 
-  // Growth loop timer for crops
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setHomePlanet((prev) => {
-        let hasChanges = false;
-        const now = Date.now();
-        const updatedPlots = prev.gardenPlots.map((plot) => {
-          if (!plot.seedType || plot.isHarvestable) return plot;
-          const seedConfig = GARDEN_SEEDS.find((s) => s.type === plot.seedType);
-          if (!seedConfig) return plot;
-
-          const elapsedSec = (now - (plot.plantedAtTimestamp ?? plot.plantedAt ?? now)) / 1000;
-          const growthMult = gardenGrowthMultiplier(prev.craftedTools as Array<{ id: string; level?: number }>);
-          const progress = Math.min(1.0, elapsedSec / (seedConfig.growthDurationSeconds * growthMult));
-          const isHarvestable = progress >= 1.0;
-
-          if (progress !== (plot.growthProgress ?? 0) || isHarvestable !== plot.isHarvestable) {
-            hasChanges = true;
-            return {
-              ...plot,
-              growthProgress: progress,
-              isHarvestable
-            };
-          }
-          return plot;
-        });
-
-        if (hasChanges) {
-          const updated = { ...prev, gardenPlots: updatedPlots };
-          saveHomePlanetState(updated);
-          return updated;
-        }
-        return prev;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
+  const flash = useCallback((message: string) => {
+    setNotice(message);
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), 3200);
   }, []);
 
-  // Save changes locally and optionally to cloud
-  const saveHomePlanetState = (updated: HomePlanetData) => {
-    const newUserData: UserSavedData = {
-      ...savedData,
-      homePlanet: updated
-    };
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
+  useEffect(() => () => {
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+  }, []);
 
-    if (auth.currentUser) {
-      FirebaseService.saveHomePlanet(auth.currentUser.uid, updated).catch((e) => {
-        console.warn('Cloud sync error:', e);
-      });
-    }
-  };
-
-  // Canvas Drawing of interactive 3D/2D home world
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-    let isRunning = true;
+  const persist = useCallback((planet: HomePlanetData, patch: Partial<UserSavedData> = {}) => {
+    const stamped = { ...planet, lastSavedAt: Date.now() };
+    const updated = StorageManager.saveData({ ...patch, homePlanet: stamped });
+    setHomePlanet(stamped);
+    onUpdateSavedData(updated);
+    return updated;
+  }, [onUpdateSavedData]);
 
-    const render = () => {
-      if (!isRunning) return;
-      rotationAngleRef.current += 0.003;
-      const angle = rotationAngleRef.current;
+  const canAfford = useCallback((cost: ResourceCost) => (
+    homePlanet.supplies.timber >= (cost.timber || 0) &&
+    homePlanet.supplies.quartz >= (cost.quartz || 0) &&
+    homePlanet.supplies.alloys >= (cost.alloys || 0) &&
+    homePlanet.supplies.plasmaCells >= (cost.plasmaCells || 0) &&
+    starDustBalance >= (cost.starDust || 0) &&
+    (savedData.totalStars || 0) >= (cost.stars || 0) &&
+    (savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0) >= (cost.diamonds || 0)
+  ), [homePlanet.supplies, savedData.spaceDiamonds, savedData.totalDiamonds, savedData.totalStars, starDustBalance]);
 
-      const w = canvas.width;
-      const h = canvas.height;
-      const cx = w / 2;
-      const cy = h / 2 + 10;
-      const radius = Math.min(w, h) * 0.32;
+  const deductSupplies = useCallback((cost: ResourceCost) => ({
+    ...homePlanet.supplies,
+    timber: homePlanet.supplies.timber - (cost.timber || 0),
+    quartz: homePlanet.supplies.quartz - (cost.quartz || 0),
+    alloys: homePlanet.supplies.alloys - (cost.alloys || 0),
+    plasmaCells: homePlanet.supplies.plasmaCells - (cost.plasmaCells || 0)
+  }), [homePlanet.supplies]);
 
-      ctx.clearRect(0, 0, w, h);
+  const spendPatch = useCallback((cost: ResourceCost): Partial<UserSavedData> => ({
+    totalStarDust: Math.max(0, starDustBalance - (cost.starDust || 0)),
+    starDustCurrency: Math.max(0, starDustBalance - (cost.starDust || 0)),
+    totalStars: Math.max(0, (savedData.totalStars || 0) - (cost.stars || 0)),
+    spaceDiamonds: Math.max(0, (savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0) - (cost.diamonds || 0))
+  }), [savedData.spaceDiamonds, savedData.totalDiamonds, savedData.totalStars, starDustBalance]);
 
-      // Deep space starry backdrop
-      ctx.fillStyle = '#050714';
-      ctx.fillRect(0, 0, w, h);
+  const enterScene = useCallback((nextScene: SanctuaryScene) => {
+    audioEngine.playMenuClick();
+    setScene(nextScene);
+    setSelectedObject(null);
+  }, []);
 
-      // Atmospheric Glow
-      const currentBiome = HOME_PLANET_BIOMES.find((b) => b.id === homePlanet.biomeId) || HOME_PLANET_BIOMES[0];
-      const glowGrad = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.35);
-      glowGrad.addColorStop(0, `${currentBiome.color}44`);
-      glowGrad.addColorStop(0.6, `${currentBiome.color}15`);
-      glowGrad.addColorStop(1, 'transparent');
+  const returnToTown = useCallback(() => {
+    audioEngine.playMenuClick();
+    setSelectedObject(null);
+    setScene('TOWN');
+  }, []);
 
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius * 1.35, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Back Planetary Ring
-      if (homePlanet.hasRing) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(-0.3);
-        ctx.beginPath();
-        ctx.ellipse(0, 0, radius * 1.7, radius * 0.45, 0, Math.PI, Math.PI * 2);
-        ctx.strokeStyle = homePlanet.ringColor || 'rgba(56, 189, 248, 0.45)';
-        ctx.lineWidth = 14;
-        ctx.stroke();
-        ctx.restore();
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (selectedObject) setSelectedObject(null);
+        else if (scene !== 'TOWN') returnToTown();
+        else onClose();
+        return;
       }
-
-      // Painted planet globe
-      const biomeSprite = spriteAtlas.biome(currentBiome.id);
-      if (biomeSprite) {
-        const size = radius * 2.12;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius * 1.03, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(biomeSprite, cx - size / 2, cy - size / 2, size, size);
-        ctx.restore();
-      } else {
-        const bodyGrad = ctx.createRadialGradient(
-          cx - radius * 0.35,
-          cy - radius * 0.35,
-          radius * 0.1,
-          cx,
-          cy,
-          radius
-        );
-        bodyGrad.addColorStop(0, currentBiome.color);
-        bodyGrad.addColorStop(0.8, currentBiome.secondaryColor);
-        bodyGrad.addColorStop(1, '#090d16');
-        ctx.fillStyle = bodyGrad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
+      if (scene !== 'TOWN') return;
+      if (['ArrowLeft', 'ArrowRight', 'a', 'A', 'd', 'D'].includes(event.key)) {
+        event.preventDefault();
+        pressedKeysRef.current.add(event.key.toLowerCase());
       }
-
-      // Surface features & decorations
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-
-      if (!biomeSprite) {
-        for (let i = 0; i < 6; i++) {
-          const patchAngle = (i * Math.PI) / 3;
-          const px = Math.cos(patchAngle) * (radius * 0.6);
-          const py = Math.sin(patchAngle) * (radius * 0.6);
-          ctx.fillStyle = `${currentBiome.color}33`;
-          ctx.beginPath();
-          ctx.arc(px, py, radius * 0.28, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      if (event.key === 'Enter') {
+        const closest = TOWN_BUILDINGS.reduce((best, building) => (
+          Math.abs(building.x - avatarX) < Math.abs(best.x - avatarX) ? building : best
+        ), TOWN_BUILDINGS[0]);
+        if (Math.abs(closest.x - avatarX) < 175) enterScene(closest.scene);
       }
-
-      // Habitat structure
-      const habitatDef = HABITAT_UPGRADES.find((h) => h.tier === homePlanet.habitatTier) || HABITAT_UPGRADES[0];
-      const habitatImg = spriteAtlas.habitat(homePlanet.habitatTier);
-      const habitatSize = Math.floor(radius * 0.55);
-      if (habitatImg) {
-        ctx.drawImage(habitatImg, -habitatSize / 2, -radius - habitatSize * 0.35, habitatSize, habitatSize);
-      } else {
-        ctx.font = `${Math.floor(radius * 0.32)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(habitatDef.icon, 0, -radius - 12);
-      }
-
-      // Storage shed
-      const storageDef = STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0];
-      const storageAngle = 1.3;
-      const sx = Math.cos(storageAngle) * (radius + 8);
-      const sy = Math.sin(storageAngle) * (radius + 8);
-      const storageImg = spriteAtlas.get(STORAGE_SPRITE);
-      const storageSize = Math.floor(radius * 0.38);
-      if (storageImg) {
-        ctx.drawImage(storageImg, sx - storageSize / 2, sy - storageSize / 2, storageSize, storageSize);
-      } else {
-        ctx.font = `${Math.floor(radius * 0.22)}px sans-serif`;
-        ctx.fillText(storageDef.icon, sx, sy);
-      }
-
-      // Greenhouse
-      const gardenAngle = -1.3;
-      const gx = Math.cos(gardenAngle) * (radius + 8);
-      const gy = Math.sin(gardenAngle) * (radius + 8);
-      const plantImg = spriteAtlas.plant('STAR_DAISY');
-      const plantSize = Math.floor(radius * 0.36);
-      if (plantImg) {
-        ctx.drawImage(plantImg, gx - plantSize / 2, gy - plantSize / 2, plantSize, plantSize);
-      } else {
-        ctx.font = `${Math.floor(radius * 0.22)}px sans-serif`;
-        ctx.fillText('🪴', gx, gy);
-      }
-
-      // Render Space Traveler Landing Site if present
-      if (homePlanet.spaceTraveler) {
-        const travelerAngle = 0.0;
-        const tx = Math.cos(travelerAngle) * (radius + 14);
-        const ty = Math.sin(travelerAngle) * (radius + 14);
-        
-        // Glowing subspace landing beacon
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(tx, ty, radius * 0.18, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
-        ctx.fill();
-        ctx.strokeStyle = homePlanet.spaceTraveler.accentColor || '#a855f7';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.font = `${Math.floor(radius * 0.2)}px sans-serif`;
-        ctx.fillText(homePlanet.spaceTraveler.shipIcon || '🛸', tx - 6, ty - 6);
-        ctx.font = `${Math.floor(radius * 0.16)}px sans-serif`;
-        ctx.fillText(homePlanet.spaceTraveler.avatarIcon || '🧙‍♂️', tx + 8, ty + 6);
-        ctx.restore();
-      }
-
-      // Render placed furniture
-      (homePlanet.placedFurniture || []).forEach((furn) => {
-        const catalogItem = HOME_FURNITURE_CATALOG.find((f) => f.id === furn.itemId);
-        if (!catalogItem) return;
-        const itemAngle = furn.placedAngle !== undefined
-          ? furn.placedAngle
-          : (furn.posX !== undefined && furn.posY !== undefined ? Math.atan2(furn.posY, furn.posX) : (furn.angle || 0));
-        const fx = Math.cos(itemAngle) * (radius + 10);
-        const fy = Math.sin(itemAngle) * (radius + 10);
-        const furnImg = spriteAtlas.furniture(furn.itemId);
-        const furnSize = Math.floor(radius * 0.34);
-        if (furnImg) {
-          ctx.drawImage(furnImg, fx - furnSize / 2, fy - furnSize / 2, furnSize, furnSize);
-        } else {
-          ctx.font = `${Math.floor(radius * 0.18)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(catalogItem.icon, fx, fy);
-        }
-      });
-
-      ctx.restore();
-
-      // Front Planetary Ring
-      if (homePlanet.hasRing) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(-0.3);
-        ctx.beginPath();
-        ctx.ellipse(0, 0, radius * 1.7, radius * 0.45, 0, 0, Math.PI);
-        ctx.strokeStyle = homePlanet.ringColor || 'rgba(56, 189, 248, 0.45)';
-        ctx.lineWidth = 14;
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      animFrameRef.current = requestAnimationFrame(render);
     };
-
-    render();
-
+    const handleKeyUp = (event: KeyboardEvent) => pressedKeysRef.current.delete(event.key.toLowerCase());
+    const stopTouchWalking = () => { touchDirectionRef.current = 0; };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('pointerup', stopTouchWalking);
+    window.addEventListener('pointercancel', stopTouchWalking);
     return () => {
-      isRunning = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('pointerup', stopTouchWalking);
+      window.removeEventListener('pointercancel', stopTouchWalking);
     };
-  }, [homePlanet]);
+  }, [avatarX, enterScene, onClose, returnToTown, scene, selectedObject]);
 
-  // Upgrade Habitat
+  useEffect(() => {
+    if (scene !== 'TOWN') return;
+    let frame = 0;
+    let previous = performance.now();
+    const animate = (now: number) => {
+      const delta = Math.min(32, now - previous);
+      previous = now;
+      const keys = pressedKeysRef.current;
+      const keyboardDirection = keys.has('arrowleft') || keys.has('a') ? -1 : keys.has('arrowright') || keys.has('d') ? 1 : 0;
+      const direction = touchDirectionRef.current || keyboardDirection;
+      setIsWalking(direction !== 0);
+      if (direction !== 0) {
+        setFacing(direction as 1 | -1);
+        setAvatarX((x) => Math.max(60, Math.min(TOWN_WIDTH - 60, x + direction * delta * 0.28)));
+        if (now - lastWalkFrameRef.current > 105) {
+          setWalkFrame((current) => (current + 1) % 8);
+          lastWalkFrameRef.current = now;
+        }
+      }
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [scene]);
+
+  useEffect(() => {
+    if (scene !== 'TOWN' || !townViewportRef.current) return;
+    const viewport = townViewportRef.current;
+    viewport.scrollTo({ left: avatarX - viewport.clientWidth / 2, behavior: isWalking ? 'auto' : 'smooth' });
+  }, [avatarX, isWalking, scene]);
+
+  const walkToBuilding = (building: TownBuilding) => {
+    setAvatarX(building.x);
+    enterScene(building.scene);
+  };
+
+  const handleGroundClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setAvatarX(Math.max(60, Math.min(TOWN_WIDTH - 60, event.clientX - rect.left)));
+  };
+
   const handleUpgradeHabitat = () => {
-    const nextTier = homePlanet.habitatTier + 1;
-    const nextDef = HABITAT_UPGRADES.find((h) => h.tier === nextTier);
-    if (!nextDef) return;
-    const m = homeUpgradeCostMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>);
+    const next = HABITAT_UPGRADES.find((item) => item.tier === homePlanet.habitatTier + 1);
+    if (!next) return flash('Your habitat has reached its final form.');
+    const multiplier = homeUpgradeCostMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>);
     const cost = {
-      timber: Math.ceil(nextDef.cost.timber * m),
-      quartz: Math.ceil(nextDef.cost.quartz * m),
-      alloys: Math.ceil(nextDef.cost.alloys * m),
-      plasmaCells: Math.ceil(nextDef.cost.plasmaCells * m),
-      starDust: Math.ceil(nextDef.cost.starDust * m)
+      timber: Math.ceil(next.cost.timber * multiplier),
+      quartz: Math.ceil(next.cost.quartz * multiplier),
+      alloys: Math.ceil(next.cost.alloys * multiplier),
+      plasmaCells: Math.ceil(next.cost.plasmaCells * multiplier),
+      starDust: Math.ceil(next.cost.starDust * multiplier)
     };
-
-    if (
-      homePlanet.supplies.timber < cost.timber ||
-      homePlanet.supplies.quartz < cost.quartz ||
-      homePlanet.supplies.alloys < cost.alloys ||
-      homePlanet.supplies.plasmaCells < cost.plasmaCells ||
-      starDustBalance < cost.starDust
-    ) {
+    if (!canAfford(cost)) {
       audioEngine.playPowerUpExpired();
-      return;
+      return flash('The construction console is missing materials. Visit the vault after your next voyage.');
     }
-
     audioEngine.playPowerUpCollect();
-    const updated: HomePlanetData = {
-      ...homePlanet,
-      habitatTier: nextTier,
-      supplies: {
-        ...homePlanet.supplies,
-        timber: homePlanet.supplies.timber - cost.timber,
-        quartz: homePlanet.supplies.quartz - cost.quartz,
-        alloys: homePlanet.supplies.alloys - cost.alloys,
-        plasmaCells: homePlanet.supplies.plasmaCells - cost.plasmaCells
-      }
-    };
-
-    // Deduct star dust
-    const newUserData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - cost.starDust),
-      starDustCurrency: Math.max(0, starDustBalance - cost.starDust),
-      homePlanet: updated
-    };
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
+    persist({ ...homePlanet, habitatTier: next.tier, supplies: deductSupplies(cost) }, spendPatch(cost));
+    flash(`${next.name} constructed! The town skyline has changed.`);
   };
 
-  // Upgrade Storage Shed
-  const handleUpgradeStorage = () => {
-    const nextTier = homePlanet.storageTier + 1;
-    const nextDef = STORAGE_UPGRADES.find((s) => s.tier === nextTier);
-    if (!nextDef) return;
-
-    if (
-      homePlanet.supplies.timber < nextDef.cost.timber ||
-      homePlanet.supplies.quartz < nextDef.cost.quartz ||
-      homePlanet.supplies.alloys < nextDef.cost.alloys ||
-      starDustBalance < nextDef.cost.starDust
-    ) {
-      audioEngine.playPowerUpExpired();
-      return;
-    }
-
-    audioEngine.playPowerUpCollect();
-    const updated: HomePlanetData = {
-      ...homePlanet,
-      storageTier: nextTier,
-      supplies: {
-        ...homePlanet.supplies,
-        timber: homePlanet.supplies.timber - nextDef.cost.timber,
-        quartz: homePlanet.supplies.quartz - nextDef.cost.quartz,
-        alloys: homePlanet.supplies.alloys - nextDef.cost.alloys
-      }
-    };
-
-    const newUserData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - nextDef.cost.starDust),
-      homePlanet: updated
-    };
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
-  };
-
-  // Upgrade Greenhouse
   const handleUpgradeGreenhouse = () => {
-    const nextTier = homePlanet.greenhouseTier + 1;
-    const nextDef = GREENHOUSE_UPGRADES.find((g) => g.tier === nextTier);
-    if (!nextDef) return;
-
-    if (
-      homePlanet.supplies.timber < nextDef.cost.timber ||
-      homePlanet.supplies.quartz < nextDef.cost.quartz ||
-      homePlanet.supplies.alloys < nextDef.cost.alloys ||
-      starDustBalance < nextDef.cost.starDust
-    ) {
+    const next = GREENHOUSE_UPGRADES.find((item) => item.tier === homePlanet.greenhouseTier + 1);
+    if (!next) return flash('The greenhouse is already at maximum capacity.');
+    if (!canAfford(next.cost)) {
       audioEngine.playPowerUpExpired();
-      return;
+      return flash('The expansion rig needs more construction supplies.');
     }
-
+    const plots = [...homePlanet.gardenPlots];
+    while (plots.length < next.plots) {
+      plots.push({ id: `plot_${plots.length + 1}`, seedType: null, plantedAtTimestamp: 0, growthProgress: 0, isHarvestable: false });
+    }
     audioEngine.playPowerUpCollect();
-
-    // Create new plots to match capacity
-    const currentCount = homePlanet.gardenPlots.length;
-    const newPlots: HomeGardenPlot[] = [...homePlanet.gardenPlots];
-    for (let i = currentCount; i < nextDef.plots; i++) {
-      newPlots.push({
-        id: `plot_${i + 1}`,
-        seedType: null,
-        plantedAtTimestamp: 0,
-        isHarvestable: false,
-        growthProgress: 0
-      });
-    }
-
-    const updated: HomePlanetData = {
-      ...homePlanet,
-      greenhouseTier: nextTier,
-      gardenPlots: newPlots,
-      supplies: {
-        ...homePlanet.supplies,
-        timber: homePlanet.supplies.timber - nextDef.cost.timber,
-        quartz: homePlanet.supplies.quartz - nextDef.cost.quartz,
-        alloys: homePlanet.supplies.alloys - nextDef.cost.alloys
-      }
-    };
-
-    const newUserData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - nextDef.cost.starDust),
-      homePlanet: updated
-    };
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
+    persist({ ...homePlanet, greenhouseTier: next.tier, gardenPlots: plots, supplies: deductSupplies(next.cost) }, spendPatch(next.cost));
+    flash(`${next.name} online — ${next.plots} living planters are ready.`);
   };
 
-  // Plant Seed in a plot
-  const handlePlantSeed = (plotId: string) => {
-    const seed = GARDEN_SEEDS.find((s) => s.type === selectedSeedType);
-    if (!seed || starDustBalance < seed.costStarDust) {
+  const handleUpgradeStorage = () => {
+    const next = STORAGE_UPGRADES.find((item) => item.tier === homePlanet.storageTier + 1);
+    if (!next) return flash('The vault is already infinite.');
+    if (!canAfford(next.cost)) {
       audioEngine.playPowerUpExpired();
-      return;
+      return flash('The vault fabricator needs more materials.');
     }
+    audioEngine.playPowerUpCollect();
+    persist({ ...homePlanet, storageTier: next.tier, supplies: deductSupplies(next.cost) }, spendPatch(next.cost));
+    flash(`${next.name} installed. Capacity is now ${next.capacity.toLocaleString()}.`);
+  };
 
+  const handleDeposit = () => {
+    const capacity = currentStorage.capacity;
+    const pickaxe = hasCraftedTool(homePlanet.craftedTools as Array<{ id: string }>, 'GRAVITON_PICKAXE');
+    const harvestBonus = 1 + (calculateSkillBonuses(savedData.skillTreeAllocations || ({} as never)).harvestYieldBonus || 0);
+    const supplies = {
+      ...homePlanet.supplies,
+      timber: Math.min(capacity, homePlanet.supplies.timber + Math.round(15 * harvestBonus)),
+      quartz: Math.min(capacity, homePlanet.supplies.quartz + Math.round(10 * (pickaxe ? 2 : 1) * harvestBonus)),
+      alloys: Math.min(capacity, homePlanet.supplies.alloys + Math.round(8 * harvestBonus)),
+      plasmaCells: Math.min(capacity, homePlanet.supplies.plasmaCells + Math.round(4 * harvestBonus))
+    };
+    audioEngine.playPowerUpCollect();
+    persist({ ...homePlanet, supplies });
+    flash('The cargo drone unloaded your voyage supplies into the room.');
+  };
+
+  const getPlotProgress = useCallback((plot: HomeGardenPlot) => {
+    if (!plot.seedType) return 0;
+    const seed = GARDEN_SEEDS.find((item) => item.type === plot.seedType);
+    if (!seed) return plot.growthProgress || 0;
+    const plantedAt = plot.plantedAtTimestamp ?? plot.plantedAt ?? clock;
+    const growthMultiplier = gardenGrowthMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>);
+    return Math.min(1, (clock - plantedAt) / 1000 / (seed.growthDurationSeconds * growthMultiplier));
+  }, [clock, homePlanet.craftedTools]);
+
+  const handlePlant = (plotId: string) => {
+    const seed = GARDEN_SEEDS.find((item) => item.type === selectedSeed);
+    const plot = homePlanet.gardenPlots.find((item) => item.id === plotId);
+    if (!seed || !plot || plot.seedType) return;
+    if (starDustBalance < seed.costStarDust) {
+      audioEngine.playPowerUpExpired();
+      return flash(`You need ${seed.costStarDust} Star Dust to plant ${seed.name}.`);
+    }
+    const plots = homePlanet.gardenPlots.map((item) => item.id === plotId ? {
+      ...item,
+      seedType: seed.type,
+      seedName: seed.name,
+      icon: seed.icon,
+      plantedAtTimestamp: Date.now(),
+      growthProgress: 0,
+      isHarvestable: false
+    } : item);
     audioEngine.playClick();
-    const updatedPlots = homePlanet.gardenPlots.map((p) => {
-      if (p.id === plotId && !p.seedType) {
-        return {
-          ...p,
-          seedType: selectedSeedType,
-          seedName: seed.name,
-          icon: seed.icon,
-          plantedAtTimestamp: Date.now(),
-          isHarvestable: false,
-          growthProgress: 0
-        };
-      }
-      return p;
+    persist({ ...homePlanet, gardenPlots: plots }, {
+      totalStarDust: starDustBalance - seed.costStarDust,
+      starDustCurrency: starDustBalance - seed.costStarDust
     });
-
-    const updated = { ...homePlanet, gardenPlots: updatedPlots };
-    const newUserData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - seed.costStarDust),
-      homePlanet: updated
-    };
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
+    flash(`${seed.name} planted. You can watch it grow right here.`);
   };
 
-  // Harvest Crop
-  const handleHarvestCrop = (plotId: string) => {
-    const plot = homePlanet.gardenPlots.find((p) => p.id === plotId);
-    if (!plot || !plot.seedType || !plot.isHarvestable) return;
-
-    const seed = GARDEN_SEEDS.find((s) => s.type === plot.seedType);
+  const handleHarvest = (plotId: string) => {
+    const plot = homePlanet.gardenPlots.find((item) => item.id === plotId);
+    if (!plot?.seedType || getPlotProgress(plot) < 1) return;
+    const seed = GARDEN_SEEDS.find((item) => item.type === plot.seedType);
     if (!seed) return;
-
+    const alchemy = calculateSkillBonuses(savedData.skillTreeAllocations || ({} as never)).gardenAlchemyBonus || 0;
+    const multiplier = gardenHarvestMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>, alchemy / 0.15);
+    const dust = Math.round(seed.rewardStarDust * multiplier);
+    const diamonds = Math.round(seed.rewardDiamonds * multiplier);
+    const plots = homePlanet.gardenPlots.map((item) => item.id === plotId ? {
+      ...item,
+      seedType: null,
+      seedName: undefined,
+      icon: undefined,
+      plantedAtTimestamp: 0,
+      growthProgress: 0,
+      isHarvestable: false
+    } : item);
     audioEngine.playPowerUpCollect();
-    const alchemy = calculateSkillBonuses(savedData.skillTreeAllocations || ({} as any)).gardenAlchemyBonus || 0;
-    const hMult = gardenHarvestMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>, alchemy / 0.15);
-    const dustGain = Math.round(seed.rewardStarDust * hMult);
-    const diamondGain = Math.round(seed.rewardDiamonds * hMult);
-
-    const updatedPlots = homePlanet.gardenPlots.map((p) => {
-      if (p.id === plotId) {
-        return {
-          ...p,
-          seedType: null,
-          seedName: undefined,
-          icon: undefined,
-          plantedAtTimestamp: 0,
-          isHarvestable: false,
-          growthProgress: 0
-        };
-      }
-      return p;
+    persist({ ...homePlanet, gardenPlots: plots }, {
+      totalStarDust: starDustBalance + dust,
+      starDustCurrency: starDustBalance + dust,
+      totalStarDustAllTime: (savedData.totalStarDustAllTime || 0) + dust,
+      totalDiamonds: (savedData.totalDiamonds || 0) + diamonds,
+      totalDiamondsAllTime: (savedData.totalDiamondsAllTime || 0) + diamonds
     });
-
-    const updated = {
-      ...homePlanet,
-      gardenPlots: updatedPlots,
-      lastHarvestTimestamp: Date.now()
-    };
-
-    const newUserData = {
-      ...savedData,
-      totalStarDust: starDustBalance + dustGain,
-      totalDiamonds: (savedData.totalDiamonds || 0) + diamondGain,
-      totalDiamondsAllTime: (savedData.totalDiamondsAllTime || 0) + diamondGain,
-      homePlanet: updated
-    };
-
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
+    flash(`Harvested ${seed.name}: +${dust} Star Dust and +${diamonds} Diamonds.`);
   };
 
-  // Craft Tool
   const handleCraftTool = (toolId: string) => {
-    const toolDef = CRAFTABLE_HOME_TOOLS.find((t) => t.id === toolId);
-    if (!toolDef) return;
-
-    if (
-      homePlanet.supplies.timber < toolDef.cost.timber ||
-      homePlanet.supplies.quartz < toolDef.cost.quartz ||
-      homePlanet.supplies.alloys < toolDef.cost.alloys ||
-      starDustBalance < toolDef.cost.starDust
-    ) {
+    const tool = CRAFTABLE_HOME_TOOLS.find((item) => item.id === toolId);
+    if (!tool) return;
+    if (!canAfford(tool.cost)) {
       audioEngine.playPowerUpExpired();
-      return;
+      return flash(`The workbench does not have enough material for ${tool.name}.`);
     }
-
-    audioEngine.playPowerUpCollect();
-
-    const existingToolIndex = homePlanet.craftedTools.findIndex((t: any) => t.id === toolId);
-    let updatedTools = [...homePlanet.craftedTools];
-    if (existingToolIndex >= 0) {
-      const existing = updatedTools[existingToolIndex] as any;
-      updatedTools[existingToolIndex] = {
-        ...existing,
-        level: (existing.level || 1) + 1
-      };
+    const existingIndex = homePlanet.craftedTools.findIndex((item) => item.id === tool.id);
+    const tools = [...homePlanet.craftedTools];
+    if (existingIndex >= 0) {
+      const existing = tools[existingIndex] as { id: string; level?: number };
+      tools[existingIndex] = { ...tool, ...existing, level: (existing.level || 1) + 1 };
     } else {
-      updatedTools.push({ ...toolDef, level: 1 });
+      tools.push({ ...tool, level: 1 });
     }
-
-    const updated: HomePlanetData = {
-      ...homePlanet,
-      craftedTools: updatedTools,
-      supplies: {
-        ...homePlanet.supplies,
-        timber: homePlanet.supplies.timber - toolDef.cost.timber,
-        quartz: homePlanet.supplies.quartz - toolDef.cost.quartz,
-        alloys: homePlanet.supplies.alloys - toolDef.cost.alloys,
-        plasmaCells: homePlanet.supplies.plasmaCells - (toolDef.cost.plasmaCells || 0)
-      }
-    };
-
-    const newUserData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - toolDef.cost.starDust),
-      homePlanet: updated
-    };
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
+    audioEngine.playPowerUpCollect();
+    persist({ ...homePlanet, craftedTools: tools, supplies: deductSupplies(tool.cost) }, spendPatch(tool.cost));
+    flash(`${tool.name} forged at the workbench.`);
   };
 
-  // Purchase & Place Furniture with Star Dust
-  const handleBuyFurniture = (itemId: string) => {
-    const item = HOME_FURNITURE_CATALOG.find((f) => f.id === itemId);
-    if (!item || starDustBalance < item.costStarDust) {
+  const handleBuyFurniture = (item: HomeFurnitureItem) => {
+    const cost = { starDust: item.costStarDust };
+    if (!canAfford(cost)) {
       audioEngine.playPowerUpExpired();
-      return;
+      return flash(`The shopkeeper needs ${item.costStarDust} Star Dust for ${item.name}.`);
     }
-
-    audioEngine.playPowerUpCollect();
-    const newFurn: HomePlacedFurniture = {
-      id: `furn_${Date.now()}`,
-      itemId,
+    const angle = ((homePlanet.placedFurniture.length * 1.15) % (Math.PI * 2));
+    const furniture: HomePlacedFurniture = {
+      id: `furn_${Date.now()}_${item.id}`,
+      itemId: item.id,
       name: item.name,
       category: item.category,
-      angle: Math.random() * Math.PI * 2,
-      placedAngle: Math.random() * Math.PI * 2,
+      angle,
+      placedAngle: angle,
       icon: item.icon,
       color: item.color
     };
-
-    const updated: HomePlanetData = {
-      ...homePlanet,
-      placedFurniture: [...(homePlanet.placedFurniture || []), newFurn]
-    };
-
-    const newUserData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - item.costStarDust),
-      homePlanet: updated
-    };
-
-    setHomePlanet(updated);
-    StorageManager.saveData(newUserData);
-    onUpdateSavedData(newUserData);
-  };
-
-  // Direct Planet Data Update (e.g. from Visual Garden layout)
-  const handleUpdatePlanetDirectly = (updatedPlanet: HomePlanetData) => {
-    const updatedUser: UserSavedData = {
-      ...savedData,
-      homePlanet: updatedPlanet
-    };
-    setHomePlanet(updatedPlanet);
-    StorageManager.saveData(updatedUser);
-    onUpdateSavedData(updatedUser);
-  };
-
-  // Change Biome
-  const handleChangeBiome = (biomeId: string) => {
-    const biome = HOME_PLANET_BIOMES.find((b) => b.id === biomeId);
-    if (!biome) return;
-
-    audioEngine.playClick();
-    const updated: HomePlanetData = {
-      ...homePlanet,
-      biomeId: biome.id as any,
-      primaryColor: biome.color,
-      secondaryColor: biome.secondaryColor
-    };
-
-    setHomePlanet(updated);
-    saveHomePlanetState(updated);
-  };
-
-  // Rename Planet
-  const handleSaveRename = () => {
-    if (!newPlanetName.trim()) return;
-    const updated = { ...homePlanet, name: newPlanetName.trim() };
-    setHomePlanet(updated);
-    saveHomePlanetState(updated);
-    setIsRenaming(false);
-  };
-
-  // Quick Deposit Exploration Loot
-  const handleDepositExplorationLoot = () => {
     audioEngine.playPowerUpCollect();
-    const storageLimit = (STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0]).capacity;
-    const pickaxe = hasCraftedTool(homePlanet.craftedTools as Array<{ id: string }>, 'GRAVITON_PICKAXE');
-    const harvestBonus = 1 + (calculateSkillBonuses(savedData.skillTreeAllocations || ({} as any)).harvestYieldBonus || 0);
-    
-    // Add bonus materials gathered from travels
-    const updatedSupplies = {
-      timber: Math.min(storageLimit, homePlanet.supplies.timber + Math.round(15 * harvestBonus)),
-      quartz: Math.min(storageLimit, homePlanet.supplies.quartz + Math.round(10 * (pickaxe ? 2 : 1) * harvestBonus)),
-      alloys: Math.min(storageLimit, homePlanet.supplies.alloys + Math.round(8 * harvestBonus)),
-      plasmaCells: Math.min(storageLimit, homePlanet.supplies.plasmaCells + Math.round(4 * harvestBonus))
-    };
-
-    const updated = { ...homePlanet, supplies: updatedSupplies };
-    setHomePlanet(updated);
-    saveHomePlanetState(updated);
-    setSyncStatus('Supplies deposited to Home Base vault!');
-    setTimeout(() => setSyncStatus(null), 3000);
+    persist({
+      ...homePlanet,
+      placedFurniture: [...homePlanet.placedFurniture, furniture],
+      unlockedDecorIds: Array.from(new Set([...(homePlanet.unlockedDecorIds || []), item.id]))
+    }, spendPatch(cost));
+    flash(`${item.name} was carried outside and placed in Sanctuary Town.`);
   };
 
-  // Trade with Space Traveler
-  const handleTradeWithTraveler = (offerId: string) => {
-    if (!homePlanet.spaceTraveler) return;
-    const offer = homePlanet.spaceTraveler.offers.find((o) => o.id === offerId);
-    if (!offer || offer.traded) return;
+  const handleStashFurniture = (furnitureId: string) => {
+    const furniture = homePlanet.placedFurniture.find((item) => item.id === furnitureId);
+    if (!furniture) return;
+    audioEngine.playClick();
+    persist({ ...homePlanet, placedFurniture: homePlanet.placedFurniture.filter((item) => item.id !== furnitureId) });
+    setSelectedObject(null);
+    flash(`${furniture.name} returned to your decor collection.`);
+  };
 
-    const reqTimber = offer.cost.timber || 0;
-    const reqQuartz = offer.cost.quartz || 0;
-    const reqAlloys = offer.cost.alloys || 0;
-    const reqPlasma = offer.cost.plasmaCells || 0;
-    const reqStarDust = offer.cost.starDust || 0;
-    const reqStars = offer.cost.stars || 0;
-    const reqDiamonds = offer.cost.diamonds || 0;
+  const handleChangeBiome = (biomeId: string) => {
+    const nextBiome = HOME_PLANET_BIOMES.find((item) => item.id === biomeId);
+    if (!nextBiome) return;
+    audioEngine.playClick();
+    persist({
+      ...homePlanet,
+      biomeId: nextBiome.id,
+      biome: nextBiome.id as HomePlanetData['biome'],
+      primaryColor: nextBiome.color,
+      secondaryColor: nextBiome.secondaryColor
+    });
+    flash(`${nextBiome.name} now colors the whole town.`);
+  };
 
-    const playerStars = savedData.totalStars || 0;
-    const playerDiamonds = (savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0);
+  const handleRename = () => {
+    const name = renameValue.trim();
+    if (!name) return;
+    persist({ ...homePlanet, name });
+    setIsRenaming(false);
+    flash(`Welcome to ${name}.`);
+  };
 
-    const canAfford =
-      homePlanet.supplies.timber >= reqTimber &&
-      homePlanet.supplies.quartz >= reqQuartz &&
-      homePlanet.supplies.alloys >= reqAlloys &&
-      homePlanet.supplies.plasmaCells >= reqPlasma &&
-      starDustBalance >= reqStarDust &&
-      playerStars >= reqStars &&
-      playerDiamonds >= reqDiamonds;
-
-    if (!canAfford) {
-      setSyncStatus('Insufficient resources for this cosmic trade!');
-      setTimeout(() => setSyncStatus(null), 3000);
-      return;
+  const handleTrade = (offer: SpaceTravelerOffer) => {
+    if (!homePlanet.spaceTraveler || offer.traded) return;
+    if (!canAfford(offer.cost)) {
+      audioEngine.playPowerUpExpired();
+      return flash(`${homePlanet.spaceTraveler.travelerName} shakes their head: you need more trade goods.`);
     }
-
-    audioEngine.playLevelUp();
-
-    const updatedSupplies = {
-      timber: homePlanet.supplies.timber - reqTimber,
-      quartz: homePlanet.supplies.quartz - reqQuartz,
-      alloys: homePlanet.supplies.alloys - reqAlloys,
-      plasmaCells: homePlanet.supplies.plasmaCells - reqPlasma,
-      starDust: homePlanet.supplies.starDust || 0
-    };
-
-    const newPlacedFurniture: HomePlacedFurniture = {
+    const angle = ((homePlanet.placedFurniture.length * 1.32) % (Math.PI * 2));
+    const furniture: HomePlacedFurniture = {
       id: `furn_${Date.now()}_${offer.itemId}`,
       itemId: offer.itemId,
       name: offer.name,
-      category: offer.category as any,
-      angle: Math.random() * Math.PI * 2,
-      placedAngle: Math.random() * Math.PI * 2,
+      category: offer.category as HomePlacedFurniture['category'],
+      angle,
+      placedAngle: angle,
       icon: offer.icon,
       color: offer.color
     };
-
-    const updatedOffers = homePlanet.spaceTraveler.offers.map((o) =>
-      o.id === offerId ? { ...o, traded: true } : o
-    );
-
-    const updatedPlanet: HomePlanetData = {
+    const offers = homePlanet.spaceTraveler.offers.map((item) => item.id === offer.id ? { ...item, traded: true } : item);
+    audioEngine.playLevelUp();
+    persist({
       ...homePlanet,
-      supplies: updatedSupplies,
-      placedFurniture: [...(homePlanet.placedFurniture || []), newPlacedFurniture],
+      supplies: deductSupplies(offer.cost),
+      placedFurniture: [...homePlanet.placedFurniture, furniture],
       unlockedDecorIds: Array.from(new Set([...(homePlanet.unlockedDecorIds || []), offer.itemId])),
-      spaceTraveler: {
-        ...homePlanet.spaceTraveler,
-        offers: updatedOffers
-      },
-      lastSavedAt: Date.now()
-    };
-
-    const updatedUser: UserSavedData = {
-      ...savedData,
-      totalStarDust: Math.max(0, starDustBalance - reqStarDust),
-      totalStars: Math.max(0, playerStars - reqStars),
-      spaceDiamonds: Math.max(0, playerDiamonds - reqDiamonds),
-      homePlanet: updatedPlanet
-    };
-
-    setHomePlanet(updatedPlanet);
-    StorageManager.saveData(updatedUser);
-    onUpdateSavedData(updatedUser);
-
-    if (auth.currentUser) {
-      FirebaseService.saveGameToCloud(auth.currentUser.uid, updatedUser);
-    }
-
-    setSyncStatus(`Traded for ${offer.name}! Placed onto your sanctuary.`);
-    setTimeout(() => setSyncStatus(null), 3500);
+      spaceTraveler: { ...homePlanet.spaceTraveler, offers }
+    }, spendPatch(offer.cost));
+    flash(`${homePlanet.spaceTraveler.travelerName}: “A fine trade. It is yours.”`);
   };
 
-  // Summon / Refresh Space Traveler with Subspace Beacon
-  const handleSummonSpaceTraveler = () => {
+  const handleSummonTraveler = () => {
+    const traveler = generateSpaceTravelerVisit();
     audioEngine.playPowerUpCollect();
-    const newVisit = generateSpaceTravelerVisit();
-    const updatedPlanet: HomePlanetData = {
-      ...homePlanet,
-      spaceTraveler: newVisit,
-      lastSavedAt: Date.now()
-    };
-
-    const updatedUser: UserSavedData = {
-      ...savedData,
-      homePlanet: updatedPlanet
-    };
-
-    setHomePlanet(updatedPlanet);
-    StorageManager.saveData(updatedUser);
-    onUpdateSavedData(updatedUser);
-
-    setSyncStatus(`${newVisit.travelerName} has landed in your sanctuary!`);
-    setTimeout(() => setSyncStatus(null), 3500);
+    persist({ ...homePlanet, spaceTraveler: traveler });
+    setSelectedObject('traveler:npc');
+    flash(`${traveler.travelerName}'s ship just dropped out of hyperspace.`);
   };
 
-  return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md select-none text-white ui-interactive animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-slate-900/95 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
-        {/* Header Bar */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-              <Home className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                {isRenaming ? (
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={newPlanetName}
-                      onChange={(e) => setNewPlanetName(e.target.value)}
-                      className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 text-sm text-white font-bold"
-                      placeholder="Planet Name"
-                    />
-                    <button
-                      onClick={handleSaveRename}
-                      className="bg-emerald-500 text-slate-950 text-xs px-2 py-1 rounded font-bold"
-                    >
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
-                      <span>{homePlanet.name}</span>
-                      <button
-                        onClick={() => {
-                          setNewPlanetName(homePlanet.name);
-                          setIsRenaming(true);
-                        }}
-                        className="text-slate-400 hover:text-white transition"
-                        title="Rename Home World"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                    </h2>
-                  </>
-                )}
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300">
-                  Tier {homePlanet.habitatTier} Sanctuary
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Your personal sovereign homestead & cosmic sanctuary
-              </p>
-            </div>
+  const selectedFurniture = selectedObject?.startsWith('furn:')
+    ? homePlanet.placedFurniture.find((item) => item.id === selectedObject.slice(5))
+    : null;
+  const selectedBiome = selectedObject?.startsWith('biome:')
+    ? HOME_PLANET_BIOMES.find((item) => item.id === selectedObject.slice(6))
+    : null;
+  const selectedPlot = selectedObject?.startsWith('plot:')
+    ? homePlanet.gardenPlots.find((item) => item.id === selectedObject.slice(5))
+    : null;
+  const selectedTool = selectedObject?.startsWith('tool:')
+    ? CRAFTABLE_HOME_TOOLS.find((item) => item.id === selectedObject.slice(5))
+    : null;
+  const selectedMarketItem = selectedObject?.startsWith('market:')
+    ? HOME_FURNITURE_CATALOG.find((item) => item.id === selectedObject.slice(7))
+    : null;
+  const selectedOffer = selectedObject?.startsWith('offer:') && homePlanet.spaceTraveler
+    ? homePlanet.spaceTraveler.offers.find((item) => item.id === selectedObject.slice(6))
+    : null;
+
+  const nearestBuilding = useMemo(() => TOWN_BUILDINGS.reduce((best, building) => (
+    Math.abs(building.x - avatarX) < Math.abs(best.x - avatarX) ? building : best
+  ), TOWN_BUILDINGS[0]), [avatarX]);
+
+  const activeCostume = savedData.activeCostumeId || 'ASTRONAUT';
+  const avatarSprite = isWalking
+    ? COSTUME_WALK_FRAMES[activeCostume]?.[walkFrame] || COSTUME_SPRITES[activeCostume]
+    : COSTUME_SPRITES[activeCostume];
+
+  const renderTopBar = () => (
+    <header className="sanctuary-topbar">
+      <div className="sanctuary-location">
+        {scene !== 'TOWN' && (
+          <button className="sanctuary-icon-button" onClick={returnToTown} aria-label="Back to town">
+            <ArrowLeft />
+          </button>
+        )}
+        <div className="sanctuary-location-mark">
+          {scene === 'TOWN' ? <Home /> : scene === 'GREENHOUSE' ? <Sprout /> : scene === 'WORKSHOP' ? <Wrench /> : scene === 'VAULT' ? <Package /> : scene === 'MARKET' ? <ShoppingBag /> : scene === 'TRAVELER' ? <Rocket /> : <Home />}
+        </div>
+        <div>
+          <span>{scene === 'TOWN' ? homePlanet.name : sceneName(scene)}</span>
+          <small>{scene === 'TOWN' ? 'SANCTUARY TOWN' : `${homePlanet.name} • INTERIOR`}</small>
+        </div>
+      </div>
+      <div className="sanctuary-wallet">
+        <span title="Stars"><Star /> {savedData.totalStars.toLocaleString()}</span>
+        <span title="Diamonds">💠 {(savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0).toLocaleString()}</span>
+        <span title="Star Dust"><Sparkles /> {starDustBalance.toLocaleString()}</span>
+        <button className="sanctuary-icon-button" onClick={onClose} aria-label="Leave sanctuary">
+          <X />
+        </button>
+      </div>
+    </header>
+  );
+
+  const renderTown = () => (
+    <div className="sanctuary-town-screen">
+      <div className="sanctuary-town-viewport" ref={townViewportRef}>
+        <div
+          className="sanctuary-town-world"
+          style={{ width: TOWN_WIDTH, backgroundImage: `linear-gradient(180deg, rgba(4,8,25,.04), rgba(6,12,30,.52)), url(${galaxyBgUrl})` }}
+          onClick={handleGroundClick}
+        >
+          <div className="sanctuary-moon">
+            <ItemSprite src={BIOME_SPRITES[biome.id]} fallback={biome.icon} alt="" />
           </div>
+          <div className="sanctuary-aurora" />
+          <div className="sanctuary-distant-ridge ridge-one" />
+          <div className="sanctuary-distant-ridge ridge-two" />
+          <div className="sanctuary-town-ground" />
+          <div className="sanctuary-path" />
 
-          {/* Star Dust Currency Balance & Close Button */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-amber-950/40 border border-amber-500/40 px-3 py-1.5 rounded-2xl shadow-sm">
-              <ItemSprite src={RESOURCE_SPRITES.stardust} className="w-5 h-5 object-contain" alt="Star Dust" />
-              <span className="font-mono font-bold text-sm text-amber-300">
-                {starDustBalance.toLocaleString()}
+          {TOWN_BUILDINGS.map((building) => (
+            <button
+              key={building.scene}
+              className={`sanctuary-building building-${building.kind}`}
+              style={{ left: building.x, '--building-accent': building.accent } as React.CSSProperties}
+              onClick={(event) => {
+                event.stopPropagation();
+                walkToBuilding(building);
+              }}
+              aria-label={`Enter ${building.name}`}
+            >
+              <span className="sanctuary-building-name">
+                <strong>{building.name}</strong>
+                <small>{building.subtitle}</small>
               </span>
-              <span className="text-[10px] text-amber-400/80 font-bold uppercase tracking-wider">
-                Star Dust
+              <span className="sanctuary-building-art">
+                <BuildingArt building={building} habitatTier={homePlanet.habitatTier} travelerIcon={homePlanet.spaceTraveler?.shipIcon} />
               </span>
+              <span className="sanctuary-building-door">ENTER</span>
+            </button>
+          ))}
+
+          {homePlanet.placedFurniture.slice(0, 12).map((furniture, index) => (
+            <button
+              key={furniture.id}
+              className="sanctuary-town-decor"
+              style={{ left: 285 + index * 151, '--decor-color': furniture.color } as React.CSSProperties}
+              onClick={(event) => {
+                event.stopPropagation();
+                setAvatarX(285 + index * 151);
+                enterScene('HABITAT');
+                setSelectedObject(`furn:${furniture.id}`);
+              }}
+              title={`${furniture.name} — inspect in the habitat`}
+            >
+              <ItemSprite src={FURNITURE_SPRITES[furniture.itemId]} fallback={furniture.icon} alt={furniture.name} />
+            </button>
+          ))}
+
+          <div
+            className={`sanctuary-avatar${isWalking ? ' is-walking' : ''}`}
+            style={{ left: avatarX, transform: `translateX(-50%) scaleX(${facing})` }}
+          >
+            <span className="sanctuary-avatar-beam" />
+            <ItemSprite src={avatarSprite} fallback="🧑‍🚀" alt="Your explorer" />
+          </div>
+        </div>
+      </div>
+
+      <div className="sanctuary-town-prompt">
+        <span><strong>{nearestBuilding.name}</strong> · {nearestBuilding.subtitle}</span>
+        <button onClick={() => walkToBuilding(nearestBuilding)}>Enter building</button>
+      </div>
+
+      <div className="sanctuary-walk-controls">
+        <button
+          onPointerDown={() => { touchDirectionRef.current = -1; }}
+          aria-label="Walk left"
+        ><ChevronLeft /></button>
+        <span><span className="desktop-walk-hint">A / D or arrows to walk · Enter to visit</span><span className="mobile-walk-hint">Hold to walk</span></span>
+        <button
+          onPointerDown={() => { touchDirectionRef.current = 1; }}
+          aria-label="Walk right"
+        ><ChevronRight /></button>
+      </div>
+    </div>
+  );
+
+  const renderHabitat = () => {
+    const nextHabitat = HABITAT_UPGRADES.find((item) => item.tier === homePlanet.habitatTier + 1);
+    const multiplier = homeUpgradeCostMultiplier(homePlanet.craftedTools as Array<{ id: string; level?: number }>);
+    const nextCost = nextHabitat ? {
+      timber: Math.ceil(nextHabitat.cost.timber * multiplier),
+      quartz: Math.ceil(nextHabitat.cost.quartz * multiplier),
+      alloys: Math.ceil(nextHabitat.cost.alloys * multiplier),
+      plasmaCells: Math.ceil(nextHabitat.cost.plasmaCells * multiplier),
+      starDust: Math.ceil(nextHabitat.cost.starDust * multiplier)
+    } : null;
+    return (
+      <div className="sanctuary-room habitat-room">
+        <div className="sanctuary-room-stars" />
+        <div className="sanctuary-room-title"><span>Living quarters</span><small>Everything you own lives in the room</small></div>
+        <div className="sanctuary-room-scroll">
+          <div className="sanctuary-room-world habitat-world">
+            <div className="sanctuary-window"><ItemSprite src={BIOME_SPRITES[biome.id]} fallback={biome.icon} alt="" /></div>
+            <div className="sanctuary-wall-stripe" />
+            <div className="sanctuary-room-floor" />
+
+            <div className="sanctuary-zone construction-zone">
+              <span className="sanctuary-zone-label">CONSTRUCTION HOLOGRAM</span>
+              <SceneObject
+                label={`Tier ${currentHabitat.tier} Habitat`}
+                hint={nextHabitat ? 'Inspect next upgrade' : 'Maximum tier'}
+                src={HABITAT_SPRITES[currentHabitat.tier]}
+                fallback={currentHabitat.icon}
+                accent="#fbbf24"
+                scale="large"
+                selected={selectedObject === 'habitat:upgrade'}
+                onClick={() => setSelectedObject('habitat:upgrade')}
+              />
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-            >
-              <X className="w-4 h-4" />
+            <div className="sanctuary-zone biome-zone">
+              <span className="sanctuary-zone-label">BIOME PROJECTORS</span>
+              <div className="sanctuary-object-shelf biome-shelf">
+                {HOME_PLANET_BIOMES.map((item) => (
+                  <SceneObject
+                    key={item.id}
+                    label={item.name.replace(/ .*/, '')}
+                    src={BIOME_SPRITES[item.id]}
+                    fallback={item.icon}
+                    accent={item.color}
+                    scale="small"
+                    selected={selectedObject === `biome:${item.id}`}
+                    onClick={() => setSelectedObject(`biome:${item.id}`)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <button className="sanctuary-name-plaque" onClick={() => { setRenameValue(homePlanet.name); setIsRenaming(true); setSelectedObject('habitat:name'); }}>
+              <Edit3 /> <span>{homePlanet.name}</span><small>Rename sanctuary</small>
             </button>
+
+            <div className="sanctuary-zone living-zone">
+              <span className="sanctuary-zone-label">YOUR FURNISHINGS</span>
+              <div className="sanctuary-object-shelf furniture-shelf">
+                {homePlanet.placedFurniture.length ? homePlanet.placedFurniture.map((furniture) => (
+                  <SceneObject
+                    key={furniture.id}
+                    label={furniture.name}
+                    src={FURNITURE_SPRITES[furniture.itemId]}
+                    fallback={furniture.icon}
+                    accent={furniture.color}
+                    scale="small"
+                    selected={selectedObject === `furn:${furniture.id}`}
+                    onClick={() => setSelectedObject(`furn:${furniture.id}`)}
+                  />
+                )) : (
+                  <button className="sanctuary-empty-room" onClick={() => enterScene('MARKET')}>
+                    <ShoppingBag /> This corner is empty. Visit the Stardust Market.
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {syncStatus && (
-          <div className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs px-3 py-1.5 rounded-xl mb-2 flex items-center justify-between">
-            <span>{syncStatus}</span>
-          </div>
+        {selectedObject === 'habitat:upgrade' && (
+          <InteractionDock
+            eyebrow="CONSTRUCTION AI"
+            title={nextHabitat ? nextHabitat.name : currentHabitat.name}
+            text={nextHabitat ? nextHabitat.description : 'The sanctuary has reached the highest known habitat tier.'}
+            portrait={<ItemSprite src={HABITAT_SPRITES[nextHabitat?.tier || currentHabitat.tier]} fallback={nextHabitat?.icon || currentHabitat.icon} alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            {nextHabitat && nextCost ? (
+              <>
+                <CostLine cost={nextCost} canAfford={canAfford(nextCost)} />
+                <button className="sanctuary-action primary" onClick={handleUpgradeHabitat}><ArrowUpCircle /> Build tier {nextHabitat.tier}</button>
+              </>
+            ) : <span className="sanctuary-complete"><Check /> Complete</span>}
+          </InteractionDock>
         )}
 
-        {/* Main Content Area */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
-          {/* Left Column: Visual 3D/2D Planet Stage */}
-          <div className="md:col-span-5 flex flex-col items-center justify-between bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3 relative overflow-hidden">
-            <canvas
-              ref={canvasRef}
-              width={340}
-              height={260}
-              className="w-full h-56 rounded-xl object-contain"
+        {selectedBiome && (
+          <InteractionDock
+            eyebrow="BIOME PROJECTOR"
+            title={selectedBiome.name}
+            text={selectedBiome.description}
+            portrait={<ItemSprite src={BIOME_SPRITES[selectedBiome.id]} fallback={selectedBiome.icon} alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <button className="sanctuary-action primary" onClick={() => handleChangeBiome(selectedBiome.id)}>
+              <Sparkles /> {selectedBiome.id === biome.id ? 'Theme active' : 'Project across town'}
+            </button>
+          </InteractionDock>
+        )}
+
+        {selectedFurniture && (
+          <InteractionDock
+            eyebrow="YOUR FURNISHING"
+            title={selectedFurniture.name}
+            text="This object appears in your home and outside in Sanctuary Town. Stash it to clear it from the scene without losing the unlock."
+            portrait={<ItemSprite src={FURNITURE_SPRITES[selectedFurniture.itemId]} fallback={selectedFurniture.icon} alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <button className="sanctuary-action" onClick={() => handleStashFurniture(selectedFurniture.id)}><Package /> Stash object</button>
+            <button className="sanctuary-action primary" onClick={() => enterScene('MARKET')}><ShoppingBag /> Visit market</button>
+          </InteractionDock>
+        )}
+
+        {selectedObject === 'habitat:name' && (
+          <InteractionDock
+            eyebrow="ENTRY PLAQUE"
+            title="Name your sanctuary"
+            text="The new name will be engraved above town and synced with your home planet save."
+            portrait={<Edit3 />}
+            onDismiss={() => { setSelectedObject(null); setIsRenaming(false); }}
+          >
+            <input className="sanctuary-name-input" value={renameValue} maxLength={28} onChange={(event) => setRenameValue(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && handleRename()} autoFocus={isRenaming} />
+            <button className="sanctuary-action primary" onClick={handleRename}><Check /> Engrave</button>
+          </InteractionDock>
+        )}
+      </div>
+    );
+  };
+
+  const renderGreenhouse = () => {
+    const selectedSeedDefinition = GARDEN_SEEDS.find((item) => item.type === selectedSeed) || GARDEN_SEEDS[0];
+    const nextGreenhouse = GREENHOUSE_UPGRADES.find((item) => item.tier === homePlanet.greenhouseTier + 1);
+    const plotProgress = selectedPlot ? getPlotProgress(selectedPlot) : 0;
+    const plotSeed = selectedPlot?.seedType ? GARDEN_SEEDS.find((item) => item.type === selectedPlot.seedType) : null;
+    return (
+      <div className="sanctuary-room greenhouse-room">
+        <div className="sanctuary-room-title"><span>{currentGreenhouse.name}</span><small>Select a seed pod, then touch an empty planter</small></div>
+        <div className="sanctuary-room-scroll">
+          <div className="sanctuary-room-world greenhouse-world">
+            <div className="greenhouse-glass" />
+            <div className="greenhouse-stars" />
+            <div className="sanctuary-room-floor greenhouse-floor" />
+
+            <div className="sanctuary-zone seed-bank-zone">
+              <span className="sanctuary-zone-label">SEED BANK · SELECT A POD</span>
+              <div className="sanctuary-object-shelf seed-shelf">
+                {GARDEN_SEEDS.map((seed) => (
+                  <SceneObject
+                    key={seed.type}
+                    label={seed.name}
+                    hint={`${seed.costStarDust} dust`}
+                    src={PLANT_SPRITES[seed.type]}
+                    fallback={seed.icon}
+                    accent={selectedSeed === seed.type ? '#fbbf24' : '#34d399'}
+                    scale="small"
+                    selected={selectedObject === `seed:${seed.type}` || selectedSeed === seed.type}
+                    onClick={() => { setSelectedSeed(seed.type); setSelectedObject(`seed:${seed.type}`); }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="sanctuary-zone planter-zone">
+              <span className="sanctuary-zone-label">LIVING PLANTERS</span>
+              <div className="sanctuary-planters">
+                {homePlanet.gardenPlots.map((plot, index) => {
+                  const progress = getPlotProgress(plot);
+                  const seed = plot.seedType ? GARDEN_SEEDS.find((item) => item.type === plot.seedType) : null;
+                  return (
+                    <button
+                      key={plot.id}
+                      className={`sanctuary-planter${progress >= 1 ? ' is-ready' : ''}${selectedObject === `plot:${plot.id}` ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedObject(`plot:${plot.id}`)}
+                    >
+                      <span className="planter-number">{index + 1}</span>
+                      {seed ? <span className="planter-plant" style={{ transform: `scale(${0.55 + progress * 0.45})` }}><ItemSprite src={PLANT_SPRITES[seed.type]} fallback={seed.icon} alt="" /></span> : <span className="empty-soil">+</span>}
+                      <span className="planter-soil" />
+                      <span className="planter-label">{seed ? (progress >= 1 ? 'Harvest!' : `${Math.round(progress * 100)}% grown`) : 'Empty planter'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <SceneObject
+              label={`Greenhouse T${homePlanet.greenhouseTier}`}
+              hint={nextGreenhouse ? `Expand to ${nextGreenhouse.plots} plots` : 'Maximum size'}
+              fallback="🧪"
+              accent="#22d3ee"
+              selected={selectedObject === 'greenhouse:upgrade'}
+              onClick={() => setSelectedObject('greenhouse:upgrade')}
             />
-
-            {/* Quick Storage Overview & Deposit */}
-            <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 mt-2 space-y-2 text-xs">
-              <div className="flex items-center justify-between text-slate-300 font-bold">
-                <span className="flex items-center gap-1">
-                  <Package className="w-3.5 h-3.5 text-sky-400" /> Vault Supplies
-                </span>
-                <span className="text-[11px] text-slate-400 font-mono">
-                  Cap: {(STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0]).capacity}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-4 gap-1 text-center font-mono">
-                <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <ItemSprite src={RESOURCE_SPRITES.timber} className="w-6 h-6 mx-auto object-contain" alt="Timber" />
-                  <span className="block text-[10px] text-amber-400">Timber</span>
-                  <span className="font-bold text-white">{homePlanet.supplies.timber}</span>
-                </div>
-                <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <ItemSprite src={RESOURCE_SPRITES.quartz} className="w-6 h-6 mx-auto object-contain" alt="Quartz" />
-                  <span className="block text-[10px] text-purple-400">Quartz</span>
-                  <span className="font-bold text-white">{homePlanet.supplies.quartz}</span>
-                </div>
-                <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <ItemSprite src={RESOURCE_SPRITES.alloys} className="w-6 h-6 mx-auto object-contain" alt="Alloys" />
-                  <span className="block text-[10px] text-cyan-400">Alloys</span>
-                  <span className="font-bold text-white">{homePlanet.supplies.alloys}</span>
-                </div>
-                <div className="bg-slate-950/60 p-1 rounded border border-slate-800">
-                  <ItemSprite src={RESOURCE_SPRITES.plasma} className="w-6 h-6 mx-auto object-contain" alt="Plasma" />
-                  <span className="block text-[10px] text-rose-400">Plasma</span>
-                  <span className="font-bold text-white">{homePlanet.supplies.plasmaCells}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleDepositExplorationLoot}
-                className="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-1.5 rounded-xl transition flex items-center justify-center gap-1.5 text-xs shadow-sm"
-              >
-                <CloudUpload className="w-3.5 h-3.5" />
-                <span>Deposit Supplies From Voyages</span>
-              </button>
-            </div>
           </div>
+        </div>
 
-          {/* Right Column: Multi-tab Operations */}
-          <div className="md:col-span-7 flex flex-col min-h-0 bg-slate-950/40 border border-slate-800/80 rounded-2xl p-3.5 overflow-hidden">
-            {/* Sub-Navigation Tabs */}
-            <div className="flex items-center gap-1.5 pb-2.5 border-b border-slate-800 overflow-x-auto no-scrollbar shrink-0">
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('HABITAT');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'HABITAT'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white bg-slate-900/60'
-                }`}
-              >
-                <Home className="w-3.5 h-3.5" />
-                <span>Habitat</span>
-              </button>
+        {selectedObject?.startsWith('seed:') && (
+          <InteractionDock
+            eyebrow="SEED BANK"
+            title={selectedSeedDefinition.name}
+            text={`${selectedSeedDefinition.description} It matures in ${selectedSeedDefinition.growthDurationSeconds} seconds and yields ${selectedSeedDefinition.rewardStarDust} dust.`}
+            portrait={<ItemSprite src={PLANT_SPRITES[selectedSeedDefinition.type]} fallback={selectedSeedDefinition.icon} alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <CostLine cost={{ starDust: selectedSeedDefinition.costStarDust }} canAfford={starDustBalance >= selectedSeedDefinition.costStarDust} />
+            <span className="sanctuary-selected-note"><Check /> Loaded — choose an empty planter</span>
+          </InteractionDock>
+        )}
 
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('GARDEN');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'GARDEN'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white bg-slate-900/60'
-                }`}
-              >
-                <Sprout className="w-3.5 h-3.5" />
-                <span>Astral Garden</span>
-              </button>
+        {selectedPlot && (
+          <InteractionDock
+            eyebrow={`PLANTER ${homePlanet.gardenPlots.indexOf(selectedPlot) + 1}`}
+            title={plotSeed ? plotSeed.name : 'Empty living soil'}
+            text={plotSeed ? (plotProgress >= 1 ? 'The bloom is radiating energy and ready to harvest.' : `Growth cycle is ${Math.round(plotProgress * 100)}% complete. It stays here and grows in real time.`) : `${selectedSeedDefinition.name} is loaded in the seed bank.`}
+            portrait={plotSeed ? <ItemSprite src={PLANT_SPRITES[plotSeed.type]} fallback={plotSeed.icon} alt="" /> : <Sprout />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            {plotSeed ? (
+              plotProgress >= 1
+                ? <button className="sanctuary-action primary" onClick={() => handleHarvest(selectedPlot.id)}><Sparkles /> Harvest bloom</button>
+                : <div className="sanctuary-progress"><span style={{ width: `${Math.round(plotProgress * 100)}%` }} /></div>
+            ) : (
+              <>
+                <CostLine cost={{ starDust: selectedSeedDefinition.costStarDust }} canAfford={starDustBalance >= selectedSeedDefinition.costStarDust} />
+                <button className="sanctuary-action primary" onClick={() => handlePlant(selectedPlot.id)}><Sprout /> Plant {selectedSeedDefinition.name}</button>
+              </>
+            )}
+          </InteractionDock>
+        )}
 
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('VISUAL_GARDEN');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'VISUAL_GARDEN'
-                    ? 'bg-emerald-400 text-slate-950 shadow-md'
-                    : 'text-emerald-300 hover:text-white bg-emerald-950/40 border border-emerald-500/30'
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5" />
-                <span>Visual Layout</span>
-              </button>
+        {selectedObject === 'greenhouse:upgrade' && (
+          <InteractionDock
+            eyebrow="EXPANSION REACTOR"
+            title={nextGreenhouse ? nextGreenhouse.name : currentGreenhouse.name}
+            text={nextGreenhouse ? `Power this reactor to grow the room from ${currentGreenhouse.plots} to ${nextGreenhouse.plots} physical planters.` : 'Every planter slot is already unlocked.'}
+            portrait={<span>🧪</span>}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            {nextGreenhouse ? <><CostLine cost={nextGreenhouse.cost} canAfford={canAfford(nextGreenhouse.cost)} /><button className="sanctuary-action primary" onClick={handleUpgradeGreenhouse}><ArrowUpCircle /> Expand room</button></> : <span className="sanctuary-complete"><Check /> Complete</span>}
+          </InteractionDock>
+        )}
+      </div>
+    );
+  };
 
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('STORAGE');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'STORAGE'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white bg-slate-900/60'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" />
-                <span>Storage Vault</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('WORKSHOP');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'WORKSHOP'
-                    ? 'bg-emerald-500 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white bg-slate-900/60'
-                }`}
-              >
-                <Wrench className="w-3.5 h-3.5" />
-                <span>Tools Workshop</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('SHOP');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'SHOP'
-                    ? 'bg-amber-400 text-slate-950 shadow-md'
-                    : 'text-slate-400 hover:text-white bg-slate-900/60'
-                }`}
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Decor Shop</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  audioEngine.playClick();
-                  setActiveTab('TRAVELER');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap relative ${
-                  activeTab === 'TRAVELER'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                    : 'text-purple-300 hover:text-white bg-purple-950/40 border border-purple-500/30'
-                }`}
-              >
-                <Rocket className="w-3.5 h-3.5" />
-                <span>Space Traveler</span>
-                {homePlanet.spaceTraveler && (
-                  <span className="w-2 h-2 rounded-full bg-pink-400 animate-ping absolute -top-0.5 -right-0.5" />
-                )}
-              </button>
+  const renderVault = () => {
+    const selectedResource = selectedObject?.startsWith('resource:')
+      ? RESOURCE_LABELS.find((item) => item.key === selectedObject.slice(9))
+      : null;
+    const nextStorage = STORAGE_UPGRADES.find((item) => item.tier === homePlanet.storageTier + 1);
+    return (
+      <div className="sanctuary-room vault-room">
+        <div className="sanctuary-room-title"><span>{currentStorage.name}</span><small>Capacity {currentStorage.capacity.toLocaleString()} per material</small></div>
+        <div className="sanctuary-room-scroll">
+          <div className="sanctuary-room-world vault-world">
+            <div className="vault-pipes" />
+            <div className="sanctuary-room-floor vault-floor" />
+            <div className="sanctuary-zone cargo-zone">
+              <span className="sanctuary-zone-label">PHYSICAL INVENTORY BAYS</span>
+              <div className="sanctuary-cargo-bays">
+                {RESOURCE_LABELS.map((resource) => (
+                  <button
+                    key={resource.key}
+                    className={`sanctuary-cargo-crate${selectedObject === `resource:${resource.key}` ? ' is-selected' : ''}`}
+                    style={{ '--crate-color': resource.color } as React.CSSProperties}
+                    onClick={() => setSelectedObject(`resource:${resource.key}`)}
+                  >
+                    <ItemSprite src={resource.src} fallback="📦" alt="" />
+                    <strong>{homePlanet.supplies[resource.key]}</strong>
+                    <span>{resource.label}</span>
+                    <small>{Math.round((homePlanet.supplies[resource.key] / currentStorage.capacity) * 100)}% bay</small>
+                  </button>
+                ))}
+              </div>
             </div>
+            <SceneObject
+              label="Cargo drone"
+              hint="Unload voyage supplies"
+              fallback="🛸"
+              accent="#38bdf8"
+              scale="large"
+              selected={selectedObject === 'vault:deposit'}
+              onClick={() => setSelectedObject('vault:deposit')}
+            />
+            <SceneObject
+              label={`Vault core T${homePlanet.storageTier}`}
+              hint={nextStorage ? 'Increase capacity' : 'Infinite capacity'}
+              src={STORAGE_SPRITE}
+              fallback="🏭"
+              accent="#c084fc"
+              scale="large"
+              selected={selectedObject === 'vault:upgrade'}
+              onClick={() => setSelectedObject('vault:upgrade')}
+            />
+          </div>
+        </div>
 
-            {/* TAB CONTENTS */}
-            <div className="flex-1 overflow-y-auto pr-1 my-2 space-y-3">
-              {/* TAB 1: HABITAT */}
-              {activeTab === 'HABITAT' && (
-                <div className="space-y-3">
-                  {/* Current Shelter Card */}
-                  {(() => {
-                    const currentDef = HABITAT_UPGRADES.find((h) => h.tier === homePlanet.habitatTier) || HABITAT_UPGRADES[0];
-                    const nextDef = HABITAT_UPGRADES.find((h) => h.tier === homePlanet.habitatTier + 1);
-                    return (
-                      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <ItemSprite src={HABITAT_SPRITES[currentDef.tier]} fallback={currentDef.icon} className="w-12 h-12 object-contain shrink-0" alt={currentDef.name} />
-                            <div>
-                              <h3 className="font-bold text-sm text-white">{currentDef.name}</h3>
-                              <p className="text-xs text-slate-400">{currentDef.description}</p>
-                            </div>
-                          </div>
-                          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-1 rounded-lg border border-emerald-500/30">
-                            Tier {currentDef.tier}
-                          </span>
-                        </div>
+        {selectedResource && (
+          <InteractionDock
+            eyebrow="CARGO BAY"
+            title={`${homePlanet.supplies[selectedResource.key]} ${selectedResource.label}`}
+            text={`These are real construction materials stored in this bay. The ${currentStorage.name} can hold ${currentStorage.capacity.toLocaleString()} of each resource.`}
+            portrait={<ItemSprite src={selectedResource.src} fallback="📦" alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <button className="sanctuary-action primary" onClick={() => setSelectedObject('vault:deposit')}><CloudUpload /> Call cargo drone</button>
+          </InteractionDock>
+        )}
 
-                        {nextDef ? (
-                          <div className="bg-slate-950/70 rounded-xl p-3 border border-slate-800 space-y-2">
-                            <div className="flex items-center justify-between text-xs font-bold">
-                              <span className="text-slate-300">Next Upgrade: {nextDef.name}</span>
-                              <span className="text-amber-400">{nextDef.cost.starDust} Star Dust</span>
-                            </div>
-                            <div className="grid grid-cols-4 gap-1 text-[11px] font-mono text-center">
-                              <div className={`p-1 rounded ${homePlanet.supplies.timber >= nextDef.cost.timber ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.timber}/{nextDef.cost.timber} Timber
-                              </div>
-                              <div className={`p-1 rounded ${homePlanet.supplies.quartz >= nextDef.cost.quartz ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.quartz}/{nextDef.cost.quartz} Quartz
-                              </div>
-                              <div className={`p-1 rounded ${homePlanet.supplies.alloys >= nextDef.cost.alloys ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.alloys}/{nextDef.cost.alloys} Alloys
-                              </div>
-                              <div className={`p-1 rounded ${homePlanet.supplies.plasmaCells >= nextDef.cost.plasmaCells ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.plasmaCells}/{nextDef.cost.plasmaCells} Plasma
-                              </div>
-                            </div>
-                            <button
-                              onClick={handleUpgradeHabitat}
-                              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow"
-                            >
-                              <ArrowUpCircle className="w-4 h-4" /> Upgrade Habitat to Tier {nextDef.tier}
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-center py-2 text-emerald-400 text-xs font-bold">
-                            ✨ Maximum Citadel Tier Reached!
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+        {selectedObject === 'vault:deposit' && (
+          <InteractionDock
+            eyebrow="CARGO DRONE"
+            title="Unload the expedition hold?"
+            text="The drone will carry gathered timber, quartz, alloys, and plasma into their visible bays. Crafted tools can improve the delivery."
+            portrait={<span>🛸</span>}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <button className="sanctuary-action primary" onClick={handleDeposit}><CloudUpload /> Unload supplies</button>
+          </InteractionDock>
+        )}
 
-                  {/* Biome Customization */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
-                    <h3 className="font-bold text-xs text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-purple-400" /> Planetary Biome Theme
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {HOME_PLANET_BIOMES.map((b) => {
-                        const isSelected = homePlanet.biomeId === b.id;
-                        return (
-                          <button
-                            key={b.id}
-                            onClick={() => handleChangeBiome(b.id)}
-                            className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 ${
-                              isSelected
-                                ? 'bg-purple-950/40 border-purple-500/70 shadow'
-                                : 'bg-slate-950/40 border-slate-800 hover:border-slate-700'
-                            }`}
-                          >
-                            <ItemSprite src={BIOME_SPRITES[b.id]} fallback={b.icon} className="w-9 h-9 object-contain rounded-full shrink-0" alt={b.name} />
-                            <div className="min-w-0">
-                              <span className="font-bold text-xs block text-white truncate">{b.name}</span>
-                              <span className="text-[10px] text-slate-400 block line-clamp-1">{b.description}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+        {selectedObject === 'vault:upgrade' && (
+          <InteractionDock
+            eyebrow="VAULT CORE"
+            title={nextStorage ? nextStorage.name : currentStorage.name}
+            text={nextStorage ? `Install a larger matter matrix and raise each material bay to ${nextStorage.capacity.toLocaleString()} capacity.` : 'The core is already bending space into an effectively infinite store room.'}
+            portrait={<ItemSprite src={STORAGE_SPRITE} fallback="🏭" alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            {nextStorage ? <><CostLine cost={nextStorage.cost} canAfford={canAfford(nextStorage.cost)} /><button className="sanctuary-action primary" onClick={handleUpgradeStorage}><ArrowUpCircle /> Upgrade vault</button></> : <span className="sanctuary-complete"><Check /> Complete</span>}
+          </InteractionDock>
+        )}
+      </div>
+    );
+  };
+
+  const renderWorkshop = () => (
+    <div className="sanctuary-room workshop-room">
+      <div className="sanctuary-room-title"><span>Meteor Workshop</span><small>Touch a tool on the bench to forge or improve it</small></div>
+      <div className="sanctuary-room-scroll">
+        <div className="sanctuary-room-world workshop-world">
+          <div className="workshop-sparks" />
+          <div className="workshop-gantry" />
+          <div className="sanctuary-room-floor workshop-floor" />
+          <div className="sanctuary-zone tool-zone">
+            <span className="sanctuary-zone-label">FORGE BENCH · OWNED TOOLS GLOW GOLD</span>
+            <div className="sanctuary-tool-benches">
+              {CRAFTABLE_HOME_TOOLS.map((tool) => {
+                const owned = homePlanet.craftedTools.find((item) => item.id === tool.id) as { id: string; level?: number } | undefined;
+                return (
+                  <div className={`sanctuary-workbench${owned ? ' is-owned' : ''}`} key={tool.id}>
+                    <span className="workbench-lamp" />
+                    <SceneObject
+                      label={tool.name}
+                      hint={owned ? `Forged · Level ${owned.level || 1}` : 'Blueprint ready'}
+                      src={TOOL_SPRITES[tool.id]}
+                      fallback={tool.icon}
+                      accent={owned ? '#fbbf24' : '#fb7185'}
+                      selected={selectedObject === `tool:${tool.id}`}
+                      onClick={() => setSelectedObject(`tool:${tool.id}`)}
+                    />
                   </div>
-                </div>
-              )}
-
-              {/* TAB 2: ASTRAL GARDEN */}
-              {activeTab === 'GARDEN' && (
-                <div className="space-y-3">
-                  {/* Seed Selector */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">Select Seed to Plant:</span>
-                      <button
-                        onClick={() => {
-                          audioEngine.playClick();
-                          setActiveTab('VISUAL_GARDEN');
-                        }}
-                        className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-lg transition"
-                      >
-                        <Compass className="w-3 h-3" />
-                        <span>Open Surface Layout</span>
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {GARDEN_SEEDS.map((seed) => {
-                        const isSelected = selectedSeedType === seed.type;
-                        return (
-                          <button
-                            key={seed.type}
-                            onClick={() => {
-                              audioEngine.playClick();
-                              setSelectedSeedType(seed.type);
-                            }}
-                            className={`p-2 rounded-xl border text-left transition flex items-center gap-2 ${
-                              isSelected
-                                ? 'bg-emerald-950/50 border-emerald-500 text-white'
-                                : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200'
-                            }`}
-                          >
-                            <ItemSprite src={PLANT_SPRITES[seed.type]} fallback={seed.icon} className="w-9 h-9 object-contain shrink-0" alt={seed.name} />
-                            <div className="min-w-0">
-                              <span className="text-xs font-bold block truncate">{seed.name}</span>
-                              <span className="text-[10px] text-amber-400 font-mono">
-                                {seed.costStarDust} Star Dust • {seed.growthDurationSeconds}s
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Garden Plots Grid */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-xs text-white flex items-center gap-1.5">
-                        <Sprout className="w-3.5 h-3.5 text-emerald-400" /> Active Garden Plots ({homePlanet.gardenPlots.length})
-                      </h3>
-                      {(() => {
-                        const nextG = GREENHOUSE_UPGRADES.find((g) => g.tier === homePlanet.greenhouseTier + 1);
-                        return nextG ? (
-                          <button
-                            onClick={handleUpgradeGreenhouse}
-                            className="text-[11px] bg-slate-800 hover:bg-slate-700 text-emerald-300 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3" /> Expand (+2 Plots, {nextG.cost.starDust} SD)
-                          </button>
-                        ) : null;
-                      })()}
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {homePlanet.gardenPlots.map((plot) => {
-                        const seedConfig = GARDEN_SEEDS.find((s) => s.type === plot.seedType);
-
-                        return (
-                          <div
-                            key={plot.id}
-                            className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between text-center min-h-[110px]"
-                          >
-                            {plot.seedType && seedConfig ? (
-                              <>
-                                <ItemSprite src={PLANT_SPRITES[plot.seedType]} fallback={seedConfig.icon} className="w-10 h-10 object-contain" alt={seedConfig.name} />
-                                <span className="text-xs font-bold text-white mt-1">{seedConfig.name}</span>
-                                {plot.isHarvestable ? (
-                                   <button
-                                    onClick={() => handleHarvestCrop(plot.id)}
-                                    className="mt-2 w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs py-1 rounded-lg shadow animate-pulse"
-                                  >
-                                    Harvest (+{seedConfig.rewardStarDust} SD)
-                                  </button>
-                                ) : (
-                                  <div className="w-full mt-2">
-                                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                      <div
-                                        className="h-full bg-emerald-400 transition-all duration-300"
-                                        style={{ width: `${Math.floor((plot.growthProgress ?? 0) * 100)}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-[10px] text-slate-400 mt-0.5 block font-mono">
-                                      Growing... {Math.floor((plot.growthProgress ?? 0) * 100)}%
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center h-full py-2">
-                                <ItemSprite src={PLANT_SPRITES.STAR_DAISY} className="w-8 h-8 object-contain opacity-40" alt="" />
-                                <span className="text-[11px] text-slate-500 mt-1">Empty Plot</span>
-                                <button
-                                  onClick={() => handlePlantSeed(plot.id)}
-                                  className="mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] px-2.5 py-0.5 rounded-lg shadow"
-                                >
-                                  Plant
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB: VISUAL GARDEN & SURFACE LAYOUT */}
-              {activeTab === 'VISUAL_GARDEN' && (
-                <VisualGardenLayout
-                  homePlanet={homePlanet}
-                  onUpdatePlanet={handleUpdatePlanetDirectly}
-                  starDustBalance={starDustBalance}
-                  onOpenShop={() => setActiveTab('SHOP')}
-                />
-              )}
-
-              {/* TAB 3: STORAGE VAULT */}
-              {activeTab === 'STORAGE' && (
-                <div className="space-y-3">
-                  {(() => {
-                    const currentStorage = STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier) || STORAGE_UPGRADES[0];
-                    const nextStorage = STORAGE_UPGRADES.find((s) => s.tier === homePlanet.storageTier + 1);
-
-                    return (
-                      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <ItemSprite src={STORAGE_SPRITE} fallback={currentStorage.icon} className="w-12 h-12 object-contain shrink-0" alt={currentStorage.name} />
-                            <div>
-                              <h3 className="font-bold text-sm text-white">{currentStorage.name}</h3>
-                              <p className="text-xs text-slate-400">Total Material Storage Capacity: {currentStorage.capacity} units</p>
-                            </div>
-                          </div>
-                          <span className="text-xs font-mono font-bold text-sky-400 bg-sky-950/60 px-2 py-1 rounded-lg border border-sky-500/30">
-                            Tier {currentStorage.tier}
-                          </span>
-                        </div>
-
-                        {nextStorage ? (
-                          <div className="bg-slate-950/70 rounded-xl p-3 border border-slate-800 space-y-2">
-                            <div className="flex items-center justify-between text-xs font-bold">
-                              <span className="text-slate-300">Next Vault: {nextStorage.name} (+{nextStorage.capacity} Cap)</span>
-                              <span className="text-amber-400">{nextStorage.cost.starDust} Star Dust</span>
-                            </div>
-                            <div className="grid grid-cols-3 gap-1 text-[11px] font-mono text-center">
-                              <div className={`p-1 rounded ${homePlanet.supplies.timber >= nextStorage.cost.timber ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.timber}/{nextStorage.cost.timber} Timber
-                              </div>
-                              <div className={`p-1 rounded ${homePlanet.supplies.quartz >= nextStorage.cost.quartz ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.quartz}/{nextStorage.cost.quartz} Quartz
-                              </div>
-                              <div className={`p-1 rounded ${homePlanet.supplies.alloys >= nextStorage.cost.alloys ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30' : 'bg-rose-950/30 text-rose-300 border border-rose-500/30'}`}>
-                                {homePlanet.supplies.alloys}/{nextStorage.cost.alloys} Alloys
-                              </div>
-                            </div>
-                            <button
-                              onClick={handleUpgradeStorage}
-                              className="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow"
-                            >
-                              <ArrowUpCircle className="w-4 h-4" /> Upgrade Vault Capacity
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-center py-2 text-sky-400 text-xs font-bold">
-                            ✨ Maximum Vault Capacity Reached!
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* TAB 4: TOOLS WORKSHOP */}
-              {activeTab === 'WORKSHOP' && (
-                <div className="space-y-2.5">
-                  {CRAFTABLE_HOME_TOOLS.map((tool) => {
-                    const existingTool = homePlanet.craftedTools.find((t) => t.id === tool.id);
-                    const currentLevel = existingTool ? existingTool.level : 0;
-                    const canAfford =
-                      homePlanet.supplies.timber >= tool.cost.timber &&
-                      homePlanet.supplies.quartz >= tool.cost.quartz &&
-                      homePlanet.supplies.alloys >= tool.cost.alloys &&
-                      starDustBalance >= tool.cost.starDust;
-
-                    return (
-                      <div
-                        key={tool.id}
-                        className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <ItemSprite src={TOOL_SPRITES[tool.id]} fallback={tool.icon} className="w-12 h-12 object-contain shrink-0" alt={tool.name} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-xs text-white truncate">{tool.name}</h4>
-                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-purple-950/60 text-purple-300 border border-purple-500/30">
-                                {currentLevel > 0 ? `Lvl ${currentLevel}` : 'Not Crafted'}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-400 line-clamp-1">{tool.description}</p>
-                            <span className="text-[10px] text-emerald-400 font-bold block mt-0.5">
-                              ✨ {tool.perkDescription}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <button
-                            onClick={() => handleCraftTool(tool.id)}
-                            disabled={!canAfford}
-                            className={`px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1 ${
-                              canAfford
-                                ? 'bg-purple-500 hover:bg-purple-400 text-slate-950 shadow'
-                                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                            }`}
-                          >
-                            <Wrench className="w-3.5 h-3.5" />
-                            <span>{currentLevel > 0 ? 'Upgrade' : 'Craft'} ({tool.cost.starDust} SD)</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* TAB 5: STAR DUST DECOR SHOP */}
-              {activeTab === 'SHOP' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {HOME_FURNITURE_CATALOG.map((item) => {
-                    const isPlaced = (homePlanet.placedFurniture || []).some((f) => f.itemId === item.id);
-                    const canBuy = starDustBalance >= item.costStarDust;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between gap-2"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <ItemSprite src={FURNITURE_SPRITES[item.id]} fallback={item.icon} className="w-12 h-12 object-contain shrink-0" alt={item.name} />
-                          <div className="min-w-0">
-                            <span className="font-bold text-xs text-white block truncate">{item.name}</span>
-                            <span className="text-[10px] text-slate-400 block line-clamp-2">{item.description}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
-                          <span className="font-mono font-bold text-amber-300">{item.costStarDust} Star Dust</span>
-                          <button
-                            onClick={() => handleBuyFurniture(item.id)}
-                            disabled={!canBuy}
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 ${
-                              canBuy
-                                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow'
-                                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                            }`}
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>{isPlaced ? 'Buy Another' : 'Place Item'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* TAB 6: SPACE TRAVELER TRADING POST */}
-              {activeTab === 'TRAVELER' && (
-                <div className="space-y-3">
-                  {homePlanet.spaceTraveler ? (
-                    <>
-                      {/* Traveler Character Header Card */}
-                      <div className="bg-gradient-to-r from-purple-950/70 via-slate-900/90 to-pink-950/60 border border-purple-500/40 rounded-2xl p-3.5 relative overflow-hidden shadow-lg">
-                        <div className="flex items-start justify-between gap-3 relative z-10">
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <div className="w-12 h-12 rounded-2xl bg-purple-900/80 border-2 border-purple-400 flex items-center justify-center text-2xl shadow-md">
-                                {homePlanet.spaceTraveler.avatarIcon}
-                              </div>
-                              <span className="absolute -bottom-1 -right-1 text-sm bg-slate-950 border border-purple-500/50 rounded-full px-1">
-                                {homePlanet.spaceTraveler.shipIcon}
-                              </span>
-                            </div>
-
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-sm text-white">
-                                  {homePlanet.spaceTraveler.travelerName}
-                                </h3>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                  {homePlanet.spaceTraveler.title}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
-                                <Clock className="w-3 h-3 text-pink-400" />
-                                <span>
-                                  Departs in{' '}
-                                  {Math.max(
-                                    0,
-                                    Math.floor(
-                                      (homePlanet.spaceTraveler.departureTimestamp - Date.now()) /
-                                        60000
-                                    )
-                                  )}{' '}
-                                  mins
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={handleSummonSpaceTraveler}
-                            className="text-xs bg-purple-900/50 hover:bg-purple-800/80 text-purple-200 border border-purple-500/40 px-2.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1 shrink-0"
-                            title="Signal Subspace Beacon to invite another traveler"
-                          >
-                            <Radio className="w-3 h-3" />
-                            <span>Summon Beacon</span>
-                          </button>
-                        </div>
-
-                        {/* Dialogue Speech Bubble */}
-                        <div className="mt-3 bg-slate-950/70 border border-purple-500/20 rounded-xl p-2.5 text-xs text-purple-200/90 italic flex items-start gap-2">
-                          <span className="text-base not-italic">💬</span>
-                          <span>"{homePlanet.spaceTraveler.dialogue}"</span>
-                        </div>
-                      </div>
-
-                      {/* Trade Offers List */}
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between text-xs text-slate-400 font-bold px-1">
-                          <span>Exclusive Relics & Furnishings</span>
-                          <span>Exchange Collected Raw Resources</span>
-                        </div>
-
-                        {homePlanet.spaceTraveler.offers.map((offer) => {
-                          const reqTimber = offer.cost.timber || 0;
-                          const reqQuartz = offer.cost.quartz || 0;
-                          const reqAlloys = offer.cost.alloys || 0;
-                          const reqPlasma = offer.cost.plasmaCells || 0;
-                          const reqStarDust = offer.cost.starDust || 0;
-                          const reqStars = offer.cost.stars || 0;
-                          const reqDiamonds = offer.cost.diamonds || 0;
-
-                          const hasTimber = homePlanet.supplies.timber >= reqTimber;
-                          const hasQuartz = homePlanet.supplies.quartz >= reqQuartz;
-                          const hasAlloys = homePlanet.supplies.alloys >= reqAlloys;
-                          const hasPlasma = homePlanet.supplies.plasmaCells >= reqPlasma;
-                          const hasStarDust = starDustBalance >= reqStarDust;
-                          const hasStars = (savedData.totalStars || 0) >= reqStars;
-                          const hasDiamonds = ((savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0)) >= reqDiamonds;
-
-                          const canTrade =
-                            !offer.traded &&
-                            hasTimber &&
-                            hasQuartz &&
-                            hasAlloys &&
-                            hasPlasma &&
-                            hasStarDust &&
-                            hasStars &&
-                            hasDiamonds;
-
-                          return (
-                            <div
-                              key={offer.id}
-                              className={`bg-slate-900/90 border rounded-2xl p-3.5 flex flex-col gap-2.5 transition ${
-                                offer.traded
-                                  ? 'border-emerald-500/40 bg-emerald-950/10'
-                                  : 'border-slate-800 hover:border-purple-500/40'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3">
-                                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner overflow-hidden bg-slate-950/60 border border-slate-700">
-                                    <ItemSprite
-                                      src={FURNITURE_SPRITES[offer.itemId]}
-                                      fallback={offer.icon}
-                                      className="w-11 h-11 object-contain"
-                                      alt={offer.name}
-                                    />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-bold text-xs text-white">
-                                        {offer.name}
-                                      </h4>
-                                      <span
-                                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
-                                          offer.rarity === 'MYTHIC'
-                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                            : offer.rarity === 'EXOTIC'
-                                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                                            : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                                        }`}
-                                      >
-                                        {offer.rarity}
-                                      </span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">
-                                      {offer.description}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {offer.traded ? (
-                                  <div className="flex items-center gap-1 text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-xl text-xs font-bold shrink-0">
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>Acquired</span>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => handleTradeWithTraveler(offer.id)}
-                                    disabled={!canTrade}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
-                                      canTrade
-                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white shadow-lg'
-                                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                    }`}
-                                  >
-                                    <Gift className="w-3.5 h-3.5" />
-                                    <span>Trade</span>
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Resource Cost Badges */}
-                              <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] font-mono">
-                                {reqTimber > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasTimber
-                                        ? 'bg-amber-950/30 text-amber-300 border-amber-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    🪵 {homePlanet.supplies.timber}/{reqTimber} Timber
-                                  </span>
-                                )}
-                                {reqQuartz > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasQuartz
-                                        ? 'bg-purple-950/30 text-purple-300 border-purple-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    💎 {homePlanet.supplies.quartz}/{reqQuartz} Quartz
-                                  </span>
-                                )}
-                                {reqAlloys > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasAlloys
-                                        ? 'bg-cyan-950/30 text-cyan-300 border-cyan-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    ⚙️ {homePlanet.supplies.alloys}/{reqAlloys} Alloys
-                                  </span>
-                                )}
-                                {reqPlasma > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasPlasma
-                                        ? 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    ⚡ {homePlanet.supplies.plasmaCells}/{reqPlasma} Plasma
-                                  </span>
-                                )}
-                                {reqStarDust > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasStarDust
-                                        ? 'bg-yellow-950/30 text-yellow-300 border-yellow-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    ✨ {starDustBalance}/{reqStarDust} Star Dust
-                                  </span>
-                                )}
-                                {reqStars > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasStars
-                                        ? 'bg-amber-950/30 text-amber-300 border-amber-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    ⭐ {savedData.totalStars || 0}/{reqStars} Stars
-                                  </span>
-                                )}
-                                {reqDiamonds > 0 && (
-                                  <span
-                                    className={`px-2 py-0.5 rounded-lg border ${
-                                      hasDiamonds
-                                        ? 'bg-sky-950/30 text-sky-300 border-sky-500/30'
-                                        : 'bg-rose-950/30 text-rose-300 border-rose-500/30'
-                                    }`}
-                                  >
-                                    💠 {(savedData.spaceDiamonds ?? savedData.totalDiamonds ?? 0)}/{reqDiamonds} Diamonds
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-10 space-y-3">
-                      <Radio className="w-8 h-8 text-purple-400 mx-auto animate-pulse" />
-                      <p className="text-sm text-slate-300 font-bold">No Space Traveler docked currently</p>
-                      <button
-                        onClick={handleSummonSpaceTraveler}
-                        className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
-                      >
-                        Transmit Subspace Beacon
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
         </div>
       </div>
+
+      {selectedTool && (() => {
+        const owned = homePlanet.craftedTools.find((item) => item.id === selectedTool.id) as { id: string; level?: number } | undefined;
+        return (
+          <InteractionDock
+            eyebrow={owned ? `OWNED · LEVEL ${owned.level || 1}` : 'TOOL BLUEPRINT'}
+            title={selectedTool.name}
+            text={`${selectedTool.description} ${selectedTool.perkDescription}. The object will remain on this bench after forging.`}
+            portrait={<ItemSprite src={TOOL_SPRITES[selectedTool.id]} fallback={selectedTool.icon} alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <CostLine cost={selectedTool.cost} canAfford={canAfford(selectedTool.cost)} />
+            <button className="sanctuary-action primary" onClick={() => handleCraftTool(selectedTool.id)}><Wrench /> {owned ? 'Improve tool' : 'Forge tool'}</button>
+          </InteractionDock>
+        );
+      })()}
+    </div>
+  );
+
+  const renderMarket = () => (
+    <div className="sanctuary-room market-room">
+      <div className="sanctuary-room-title"><span>Stardust Market</span><small>The merchandise is on the shelves — touch any object to inspect it</small></div>
+      <div className="sanctuary-room-scroll market-scroll">
+        <div className="sanctuary-room-world market-world">
+          <div className="market-neon">OPEN · SANCTUARY OBJECTS · OPEN</div>
+          <div className="market-curtains" />
+          <div className="sanctuary-room-floor market-floor" />
+          <div className="sanctuary-shopkeeper">
+            <span>🧑‍🔧</span>
+            <div>“Pick it up. See how it feels in the room.”</div>
+          </div>
+          <div className="sanctuary-market-shelves">
+            {HOME_FURNITURE_CATALOG.map((item) => {
+              const ownedCount = homePlanet.placedFurniture.filter((placed) => placed.itemId === item.id).length;
+              return (
+                <div className="sanctuary-market-pedestal" key={item.id}>
+                  <span className="pedestal-price"><Sparkles /> {item.costStarDust}</span>
+                  <SceneObject
+                    label={item.name}
+                    hint={ownedCount ? `${ownedCount} in town` : item.category}
+                    src={FURNITURE_SPRITES[item.id]}
+                    fallback={item.icon}
+                    accent={item.color}
+                    scale="small"
+                    selected={selectedObject === `market:${item.id}`}
+                    onClick={() => setSelectedObject(`market:${item.id}`)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {selectedMarketItem && (
+        <InteractionDock
+          eyebrow={`${selectedMarketItem.category} · MARKET OBJECT`}
+          title={selectedMarketItem.name}
+          text={`${selectedMarketItem.description} Buying it places the object directly outside in Sanctuary Town and in your habitat.`}
+          portrait={<ItemSprite src={FURNITURE_SPRITES[selectedMarketItem.id]} fallback={selectedMarketItem.icon} alt="" />}
+          onDismiss={() => setSelectedObject(null)}
+        >
+          <CostLine cost={{ starDust: selectedMarketItem.costStarDust }} canAfford={starDustBalance >= selectedMarketItem.costStarDust} />
+          <button className="sanctuary-action primary" onClick={() => handleBuyFurniture(selectedMarketItem)}><ShoppingBag /> Buy & place</button>
+        </InteractionDock>
+      )}
+    </div>
+  );
+
+  const renderTraveler = () => {
+    const traveler = homePlanet.spaceTraveler;
+    const minutes = traveler ? Math.max(0, Math.ceil((traveler.departureTimestamp - clock) / 60000)) : 0;
+    return (
+      <div className="sanctuary-room traveler-room">
+        <div className="sanctuary-room-title"><span>Landing Pad</span><small>Walk up to the visitor or touch one of their floating wares</small></div>
+        <div className="sanctuary-room-scroll">
+          <div className="sanctuary-room-world traveler-world">
+            <div className="traveler-spaceport" />
+            <div className="landing-horizon" />
+            <div className="sanctuary-room-floor landing-floor" />
+            {traveler ? (
+              <>
+                <button className={`sanctuary-traveler-npc${selectedObject === 'traveler:npc' ? ' is-selected' : ''}`} onClick={() => setSelectedObject('traveler:npc')}>
+                  <span className="traveler-ship">{traveler.shipIcon}</span>
+                  <span className="traveler-avatar">{traveler.avatarIcon}</span>
+                  <strong>{traveler.travelerName}</strong>
+                  <small>{traveler.title}</small>
+                  <em><Timer /> {minutes}m before departure</em>
+                </button>
+                <div className="sanctuary-offer-platforms">
+                  {traveler.offers.map((offer) => (
+                    <div className={`sanctuary-offer-platform rarity-${offer.rarity.toLowerCase()}`} key={offer.id}>
+                      <span className="offer-rarity">{offer.rarity}</span>
+                      <SceneObject
+                        label={offer.name}
+                        hint={offer.traded ? 'Traded' : 'Ask about this'}
+                        src={FURNITURE_SPRITES[offer.itemId]}
+                        fallback={offer.icon}
+                        accent={offer.color}
+                        locked={offer.traded}
+                        selected={selectedObject === `offer:${offer.id}`}
+                        onClick={() => setSelectedObject(`offer:${offer.id}`)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="sanctuary-empty-landing">No ship on approach.</div>
+            )}
+            <SceneObject
+              label="Subspace beacon"
+              hint="Call a new traveler"
+              fallback="📡"
+              accent="#c084fc"
+              selected={selectedObject === 'traveler:beacon'}
+              onClick={() => setSelectedObject('traveler:beacon')}
+            />
+          </div>
+        </div>
+
+        {traveler && selectedObject === 'traveler:npc' && (
+          <InteractionDock
+            eyebrow={`${traveler.title} · ${minutes}M REMAINING`}
+            title={traveler.travelerName}
+            text={`“${traveler.dialogue} My wares are floating beside me — touch one and we will discuss its price.”`}
+            portrait={<span>{traveler.avatarIcon}</span>}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <span className="sanctuary-selected-note">Select a floating object to trade</span>
+          </InteractionDock>
+        )}
+
+        {traveler && selectedOffer && (
+          <InteractionDock
+            eyebrow={`${selectedOffer.rarity} OFFER · ${traveler.travelerName}`}
+            title={selectedOffer.name}
+            text={`“${selectedOffer.description} I will place it in your town the moment our trade is complete.”`}
+            portrait={<ItemSprite src={FURNITURE_SPRITES[selectedOffer.itemId]} fallback={selectedOffer.icon} alt="" />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <CostLine cost={selectedOffer.cost} canAfford={canAfford(selectedOffer.cost)} />
+            <button className="sanctuary-action primary" disabled={selectedOffer.traded} onClick={() => handleTrade(selectedOffer)}>{selectedOffer.traded ? <><Check /> Already traded</> : <><Sparkles /> Accept trade</>}</button>
+          </InteractionDock>
+        )}
+
+        {selectedObject === 'traveler:beacon' && (
+          <InteractionDock
+            eyebrow="SUBSPACE BEACON"
+            title="Signal a different traveler?"
+            text="The current visitor and their offers will depart. A new merchant will land immediately with a new conversation and physical wares."
+            portrait={<Radio />}
+            onDismiss={() => setSelectedObject(null)}
+          >
+            <button className="sanctuary-action primary" onClick={handleSummonTraveler}><Radio /> Send signal</button>
+          </InteractionDock>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className="sanctuary-shell ui-interactive"
+      style={{ '--biome-color': biome.color, '--biome-dark': biome.secondaryColor } as React.CSSProperties}
+    >
+      {renderTopBar()}
+      {notice && <div className="sanctuary-notice"><Sparkles /> {notice}</div>}
+      <main className="sanctuary-main">
+        {scene === 'TOWN' && renderTown()}
+        {scene === 'HABITAT' && renderHabitat()}
+        {scene === 'GREENHOUSE' && renderGreenhouse()}
+        {scene === 'VAULT' && renderVault()}
+        {scene === 'WORKSHOP' && renderWorkshop()}
+        {scene === 'MARKET' && renderMarket()}
+        {scene === 'TRAVELER' && renderTraveler()}
+      </main>
+      {scene !== 'TOWN' && (
+        <button className="sanctuary-back-to-town" onClick={returnToTown}><ArrowLeft /> Town</button>
+      )}
+      <div className="sanctuary-screen-label"><Info /> Full-screen interactive sanctuary · objects are the menu</div>
     </div>
   );
 };

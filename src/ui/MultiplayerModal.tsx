@@ -20,7 +20,7 @@ import {
   Crosshair,
   Crown
 } from 'lucide-react';
-import { FirebaseService, auth, type User } from '../core/firebase';
+import { FirebaseService, isFirebaseAvailable, type AppUser } from '../core/firebase';
 import { RoomData, MultiplayerMode, PlayerOnlineState } from '../types/multiplayer';
 import { UserSavedData } from '../types/game';
 import { audioEngine } from '../core/AudioEngine';
@@ -36,7 +36,7 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   onClose,
   onStartMatch
 }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(FirebaseService.getSignedInUser());
   const [selectedMode, setSelectedMode] = useState<MultiplayerMode>('BATTLE');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [activeRoom, setActiveRoom] = useState<RoomData | null>(null);
@@ -45,6 +45,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+
+  const firebaseReady = isFirebaseAvailable();
+  const canPlayOnline = firebaseReady && !!currentUser;
 
   // Listen to Auth State
   useEffect(() => {
@@ -104,7 +107,10 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   };
 
   const handleCreateRoom = async () => {
-    if (!currentUser) return;
+    if (!canPlayOnline) {
+      setErrorMessage('Online multiplayer needs a Firebase connection. You are in local guest mode.');
+      return;
+    }
     setIsCreating(true);
     setErrorMessage(null);
     try {
@@ -127,7 +133,11 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
   };
 
   const handleJoinByCode = async () => {
-    if (!currentUser || !roomCodeInput.trim()) return;
+    if (!canPlayOnline) {
+      setErrorMessage('Online multiplayer needs a Firebase connection. You are in local guest mode.');
+      return;
+    }
+    if (!roomCodeInput.trim()) return;
     setIsJoining(true);
     setErrorMessage(null);
     try {
@@ -204,7 +214,25 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
         <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto">
           
           {/* User Auth Banner */}
-          {!currentUser ? (
+          {!firebaseReady ? (
+            <div className="bg-gradient-to-r from-slate-900/90 to-slate-950/90 border border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-slate-400" />
+                  <span className="font-black text-sm text-white">Offline Build — Multiplayer Unavailable</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  This build runs without Firebase, so online matches are disabled. Your progress still saves locally — play single-player anytime!
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition-all"
+              >
+                <span>Back to Game</span>
+              </button>
+            </div>
+          ) : !currentUser ? (
             <div className="bg-gradient-to-r from-indigo-950/70 to-slate-900/90 border border-indigo-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
               <div>
                 <div className="flex items-center gap-2">
@@ -420,9 +448,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
                   <button
                     onClick={handleCreateRoom}
-                    disabled={isCreating || !currentUser}
+                    disabled={isCreating || !canPlayOnline}
                     className={`w-full py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
-                      !currentUser
+                      !canPlayOnline
                         ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-indigo-500 to-sky-500 hover:from-indigo-400 hover:to-sky-400 text-slate-950 shadow-indigo-500/25'
                     }`}
@@ -455,9 +483,9 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
                     />
                     <button
                       onClick={handleJoinByCode}
-                      disabled={isJoining || !currentUser || !roomCodeInput.trim()}
+                      disabled={isJoining || !canPlayOnline || !roomCodeInput.trim()}
                       className={`px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 shadow-md ${
-                        !currentUser || !roomCodeInput.trim()
+                        !canPlayOnline || !roomCodeInput.trim()
                           ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                           : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/20'
                       }`}

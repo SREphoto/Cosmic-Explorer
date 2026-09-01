@@ -3,7 +3,7 @@ import { X, Trophy, Star, Gem, CheckCircle2, Lock, Sparkles, Globe, Award, Refre
 import { Achievement, UserSavedData } from '../types/game';
 import { ACHIEVEMENTS } from '../core/Config';
 import { audioEngine } from '../core/AudioEngine';
-import { FirebaseService, auth } from '../core/firebase';
+import { FirebaseService, isFirebaseAvailable, type AppUser } from '../core/firebase';
 import trophyBannerImg from '../assets/images/trophy_badges_banner_1786696596962.jpg';
 
 interface AchievementsModalProps {
@@ -38,7 +38,8 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [scoreSubmittedMessage, setScoreSubmittedMessage] = useState<string | null>(null);
 
-  const currentUser = auth.currentUser;
+  const firebaseReady = isFirebaseAvailable();
+  const currentUser: AppUser | null = FirebaseService.getSignedInUser();
   const todayKey = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
@@ -60,6 +61,10 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
   };
 
   const handleSubmitTodayScore = async () => {
+    if (!firebaseReady) {
+      setScoreSubmittedMessage('The online leaderboard is unavailable in this build. Saves stay on this device.');
+      return;
+    }
     if (!currentUser) {
       try {
         await FirebaseService.signInGuest();
@@ -67,7 +72,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         // proceed
       }
     }
-    const user = auth.currentUser;
+    const user = FirebaseService.getSignedInUser();
     if (!user) return;
 
     setIsSubmittingScore(true);

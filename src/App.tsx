@@ -29,7 +29,7 @@ import { MultiplayerGameOverlay } from './ui/MultiplayerGameOverlay';
 import { LoginScreen } from './ui/LoginScreen';
 import { LevelVictoryCutscene } from './ui/LevelVictoryCutscene';
 import { MedalChestModal } from './ui/MedalChestModal';
-import { FirebaseService, auth } from './core/firebase';
+import { FirebaseService, type AppUser } from './core/firebase';
 import { RoomData, TrapType } from './types/multiplayer';
 import { DailyChallengeSystem } from './systems/DailyChallengeSystem';
 import { ToastContainer, showToast } from './ui/Toast';
@@ -41,7 +41,8 @@ export default function App() {
 
   const [gameMode, setGameMode] = useState<GameMode>('MENU');
   const [savedData, setSavedData] = useState<UserSavedData>(() => StorageManager.loadData());
-  const [currentUser, setCurrentUser] = useState<typeof auth.currentUser>(null);
+  // Login is OPTIONAL: everyone starts in a local guest session; cloud login simply upgrades it.
+  const [currentUser, setCurrentUser] = useState<AppUser>(() => FirebaseService.getCurrentUser());
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [levelVictoryData, setLevelVictoryData] = useState<LevelVictoryData | null>(null);
   const [activeModal, setActiveModal] = useState<
@@ -109,8 +110,9 @@ export default function App() {
       setLevelVictoryData(victoryData);
       setSavedData(StorageManager.loadData());
       audioEngine.playPowerUpCollect();
-      if (currentUser?.uid) {
-        FirebaseService.saveGameToCloud(currentUser.uid, StorageManager.loadData());
+      const signedInUser = FirebaseService.getSignedInUser();
+      if (signedInUser) {
+        FirebaseService.saveGameToCloud(signedInUser.uid, StorageManager.loadData());
       }
     };
 
@@ -138,7 +140,8 @@ export default function App() {
   // Sync Auth State & Cloud Merging
   useEffect(() => {
     const unsub = FirebaseService.onAuthChange(async (u) => {
-      setCurrentUser(u);
+      // Signing out (or having no Firebase) gracefully falls back to the local guest session.
+      setCurrentUser(u ?? FirebaseService.getCurrentUser());
       if (u) {
         try {
           const cloudData = await FirebaseService.loadGameFromCloud(u.uid);
@@ -161,7 +164,7 @@ export default function App() {
   useEffect(() => {
     if (!activeMultiplayerRoom?.id || gameMode !== 'PLAYING') return;
 
-    const currentUserId = auth.currentUser?.uid;
+    const currentUserId = FirebaseService.getSignedInUser()?.uid;
     if (!currentUserId) return;
 
     // 1. Subscribe to Live Room Updates
@@ -198,7 +201,7 @@ export default function App() {
       if (activeMultiplayerRoom.mode === 'RACE' && activeMultiplayerRoom.status === 'ACTIVE') {
         const target = activeMultiplayerRoom.targetAltitude || 3500;
         if (stats.altitude >= target) {
-          const userName = auth.currentUser?.displayName || 'Cosmic Runner';
+          const userName = FirebaseService.getSignedInUser()?.displayName || 'Cosmic Runner';
           FirebaseService.endMatch(activeMultiplayerRoom.id, currentUserId, userName);
         }
       }
@@ -213,7 +216,7 @@ export default function App() {
   // Battle Mode: Land on planet -> Claim & Trigger enemy traps
   useEffect(() => {
     if (!activeMultiplayerRoom || activeMultiplayerRoom.mode !== 'BATTLE' || gameMode !== 'PLAYING') return;
-    const currentUserId = auth.currentUser?.uid;
+    const currentUserId = FirebaseService.getSignedInUser()?.uid;
     if (!currentUserId || !engineRef.current) return;
 
     const player = engineRef.current.player;
@@ -281,7 +284,7 @@ export default function App() {
 
   const handleDeployTrap = async (trapType: TrapType) => {
     if (!activeMultiplayerRoom || !engineRef.current?.player.currentPlanet) return;
-    const currentUserId = auth.currentUser?.uid;
+    const currentUserId = FirebaseService.getSignedInUser()?.uid;
     if (!currentUserId) return;
 
     const pId = engineRef.current.player.currentPlanet.id;
@@ -291,8 +294,9 @@ export default function App() {
   };
 
   const handleLeaveMultiplayerMatch = async () => {
-    if (activeMultiplayerRoom && auth.currentUser) {
-      await FirebaseService.leaveRoom(activeMultiplayerRoom.id, auth.currentUser.uid);
+    const signedInUser = FirebaseService.getSignedInUser();
+    if (activeMultiplayerRoom && signedInUser) {
+      await FirebaseService.leaveRoom(activeMultiplayerRoom.id, signedInUser.uid);
     }
     setActiveMultiplayerRoom(null);
     handleGoToMenu();
@@ -676,19 +680,19 @@ export default function App() {
           />
         )}
 
-        {/* Authentication Login Screen (Enforces user login before play) */}
-        {(!currentUser || showLoginModal) && (
+        {/* Optional Login Screen — players can always play as a local guest without signing in */}
+        {showLoginModal && (
           <LoginScreen
-            onLoginSuccess={(mergedData, displayName) => {
+            onLoginSuccess={(mergedData, displayName, user) => {
               setSavedData(mergedData);
               if (engineRef.current) {
                 engineRef.current.savedData = mergedData;
               }
-              setCurrentUser(auth.currentUser);
+              setCurrentUser(user);
               setShowLoginModal(false);
               showToast('SUCCESS', 'Starfleet Verification Confirmed', `Welcome Commander ${displayName}!`);
             }}
-            onClose={currentUser ? () => setShowLoginModal(false) : undefined}
+            onClose={() => setShowLoginModal(false)}
           />
         )}
 

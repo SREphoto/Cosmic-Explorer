@@ -1,5 +1,5 @@
 import { UserSavedData, CostumeId, PowerUpUpgrades, EquippedGear, SkillTreeAllocations } from '../types/game';
-import { FirebaseService, auth } from './firebase';
+import { FirebaseService } from './firebase';
 
 const STORAGE_KEY = 'LITTLE_GALAXY_SAVED_DATA_V1';
 
@@ -122,13 +122,14 @@ export class StorageManager {
       console.warn('Failed to persist game state to localStorage', e);
     }
 
-    // Auto-sync to Firebase Firestore if user is authenticated
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      FirebaseService.saveGameToCloud(currentUser.uid, updated).catch(err => {
+    // Auto-sync to Firebase Firestore only for a real signed-in cloud user
+    // (local guests stay strictly on-device, and Firebase may be unavailable).
+    const signedInUser = FirebaseService.getSignedInUser();
+    if (signedInUser) {
+      FirebaseService.saveGameToCloud(signedInUser.uid, updated).catch(err => {
         console.warn('Cloud sync error:', err);
       });
-      FirebaseService.syncUserProfile(currentUser, updated).catch(() => {});
+      FirebaseService.syncUserProfile(signedInUser, updated).catch(() => {});
     }
 
     return updated;

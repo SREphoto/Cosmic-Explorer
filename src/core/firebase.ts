@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
   signInWithPopup, 
@@ -9,9 +9,8 @@ import {
   updateProfile,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  User 
+  type Auth
 } from 'firebase/auth';
-export type { User } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
@@ -24,11 +23,45 @@ import {
   limit, 
   getDocs,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  type Firestore
 } from 'firebase/firestore';
 import firebaseConfigData from '../../firebase-applet-config.json';
 import { UserSavedData } from '../types/game';
 import { RoomData, PlayerOnlineState, TrapInfo } from '../types/multiplayer';
+
+/**
+ * AppUser is the minimal user shape the app relies on. It is satisfied by a real
+ * Firebase `User` (for cloud play) and by a purely local guest (when Firebase is
+ * unavailable or the player skips login), so the game never depends on Firebase.
+ */
+export interface AppUser {
+  uid: string;
+  displayName: string | null;
+  photoURL: string | null;
+  isAnonymous: boolean;
+  email?: string | null;
+  /** True when this is the local-only guest session (no Firebase involved). */
+  isLocalGuest?: boolean;
+}
+
+const LOCAL_GUEST_UID = 'local-guest-cosmic-explorer';
+const LOCAL_GUEST_NAME = 'Cosmic Guest';
+
+/**
+ * Create a stable local guest session. Every load without a Firebase sign-in uses
+ * the same identity, so local saves are always reachable and cloud APIs are never
+ * called from guest sessions.
+ */
+export function createLocalGuestUser(): AppUser {
+  return {
+    uid: LOCAL_GUEST_UID,
+    displayName: LOCAL_GUEST_NAME,
+    photoURL: null,
+    isAnonymous: true,
+    isLocalGuest: true
+  };
+}
 
 const firebaseConfig = {
   apiKey: firebaseConfigData.apiKey,
@@ -39,31 +72,95 @@ const firebaseConfig = {
   appId: firebaseConfigData.appId,
 };
 
-// Initialize Firebase App
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfigData.firestoreDatabaseId || undefined);
+/**
+ * Firebase is OPTIONAL. When the config is missing, empty, or initialization
+ * fails (e.g. no network / local static build), the game falls back to a local
+ * guest session instead of crashing at module load.
+ */
+const hasUsableConfig = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId
+);
+
+let firebaseApp: FirebaseApp | null = null;
+export let auth: Auth | null = null;
+export let db: Firestore | null = null;
+
+if (hasUsableConfig) {
+  try {
+    firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    try {
+      auth = getAuth(firebaseApp);
+    } catch (e) {
+      console.warn('Firebase Auth unavailable; running in local-only mode.', e);
+    }
+    try {
+      db = getFirestore(firebaseApp, firebaseConfigData.firestoreDatabaseId || undefined);
+    } catch (e) {
+      console.warn('Firestore unavailable; cloud saves & multiplayer disabled.', e);
+    }
+  } catch (e) {
+    console.warn('Firebase initialization failed; running in local-only mode.', e);
+  }
+}
+
+/** Whether a usable Firebase Auth instance is available. */
+export function isFirebaseAvailable(): boolean {
+  return auth !== null;
+}
+
+/** Whether a usable Firestore instance is available. */
+export function isFirestoreAvailable(): boolean {
+  return db !== null;
+}
 
 const googleProvider = new GoogleAuthProvider();
 
 export class FirebaseService {
   /**
-   * Listen to Auth state changes
+   * Current session user: the signed-in Firebase user when available,
+   * otherwise a stable local guest.
    */
-  public static onAuthChange(callback: (user: User | null) => void): () => void {
-    return onAuthStateChanged(auth, callback);
+  public static getCurrentUser(): AppUser {
+    if (auth?.currentUser) {
+      return auth.currentUser as AppUser;
+    }
+    return createLocalGuestUser();
+  }
+
+  /**
+   * Returns the signed-in Firebase user, or null when the player is in
+   * local guest mode (i.e. nothing should be written to the cloud).
+   */
+  public static getSignedInUser(): AppUser | null {
+    return auth?.currentUser ? (auth.currentUser as AppUser) : null;
+  }
+
+  /**
+   * Listen to Auth state changes. When Firebase is unavailable this is a
+   * no-op; callers should fall back to getCurrentUser() for the guest session.
+   */
+  public static onAuthChange(callback: (user: AppUser | null) => void): () => void {
+    if (!auth) {
+      return () => {};
+    }
+    return onAuthStateChanged(auth, (user) => {
+      callback(user ? (user as AppUser) : null);
+    });
   }
 
   /**
    * Sign In with Google
    */
-  public static async signInWithGoogle(): Promise<User | null> {
+  public static async signInWithGoogle(): Promise<AppUser | null> {
+    if (!auth) {
+      throw new Error('Cloud sign-in is not available in this environment. Play as Guest or continue offline.');
+    }
     try {
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
-        await this.syncUserProfile(result.user);
+        await this.syncUserProfile(result.user as AppUser);
       }
-      return result.user;
+      return result.user as AppUser;
     } catch (error) {
       console.warn('Google Sign-in failed or cancelled:', error);
       throw error;
@@ -73,13 +170,16 @@ export class FirebaseService {
   /**
    * Sign In with Email and Password
    */
-  public static async signInWithEmail(email: string, pass: string): Promise<User | null> {
+  public static async signInWithEmail(email: string, pass: string): Promise<AppUser | null> {
+    if (!auth) {
+      throw new Error('Cloud sign-in is not available in this environment. Play as Guest or continue offline.');
+    }
     try {
       const res = await signInWithEmailAndPassword(auth, email, pass);
       if (res.user) {
-        await this.syncUserProfile(res.user);
+        await this.syncUserProfile(res.user as AppUser);
       }
-      return res.user;
+      return res.user as AppUser;
     } catch (error) {
       console.warn('Email sign-in failed:', error);
       throw error;
@@ -89,16 +189,19 @@ export class FirebaseService {
   /**
    * Register with Email and Password
    */
-  public static async registerWithEmail(email: string, pass: string, displayName?: string): Promise<User | null> {
+  public static async registerWithEmail(email: string, pass: string, displayName?: string): Promise<AppUser | null> {
+    if (!auth) {
+      throw new Error('Cloud sign-up is not available in this environment. Play as Guest or continue offline.');
+    }
     try {
       const res = await createUserWithEmailAndPassword(auth, email, pass);
       if (res.user && displayName) {
         await updateProfile(res.user, { displayName });
       }
       if (res.user) {
-        await this.syncUserProfile(res.user);
+        await this.syncUserProfile(res.user as AppUser);
       }
-      return res.user;
+      return res.user as AppUser;
     } catch (error) {
       console.warn('Email registration failed:', error);
       throw error;
@@ -106,15 +209,21 @@ export class FirebaseService {
   }
 
   /**
-   * Sign In Anonymously (Guest Mode)
+   * Sign In Anonymously (Guest Mode).
+   * Never fails the game: when Firebase Auth is missing or unreachable it falls
+   * back to a purely local guest session so "Play as Guest" always works.
    */
-  public static async signInGuest(): Promise<User | null> {
+  public static async signInGuest(): Promise<AppUser> {
+    if (!auth) {
+      console.warn('Firebase Auth unavailable — starting local guest session.');
+      return createLocalGuestUser();
+    }
     try {
       const result = await firebaseSignInAnonymously(auth);
-      return result.user;
+      return result.user as AppUser;
     } catch (error) {
-      console.warn('Guest sign-in failed:', error);
-      throw error;
+      console.warn('Guest sign-in failed — falling back to local guest session:', error);
+      return createLocalGuestUser();
     }
   }
 
@@ -122,6 +231,9 @@ export class FirebaseService {
    * Sign Out
    */
   public static async signOut(): Promise<void> {
+    if (!auth) {
+      return;
+    }
     try {
       await firebaseSignOut(auth);
     } catch (error) {
@@ -132,8 +244,8 @@ export class FirebaseService {
   /**
    * Sync User Profile metadata to Firestore
    */
-  public static async syncUserProfile(user: User, stats?: Partial<UserSavedData>): Promise<void> {
-    if (!user) return;
+  public static async syncUserProfile(user: AppUser, stats?: Partial<UserSavedData>): Promise<void> {
+    if (!user || user.isLocalGuest || !db) return;
     try {
       const userRef = doc(db, 'users', user.uid);
       const dataToSave = {
@@ -157,6 +269,7 @@ export class FirebaseService {
    * Save Game State to Cloud Firestore
    */
   public static async saveGameToCloud(userId: string, savedData: UserSavedData): Promise<boolean> {
+    if (!db || userId === LOCAL_GUEST_UID) return false;
     try {
       const saveRef = doc(db, 'saves', userId);
       await setDoc(saveRef, {
@@ -175,6 +288,7 @@ export class FirebaseService {
    * Load Game State from Cloud Firestore
    */
   public static async loadGameFromCloud(userId: string): Promise<UserSavedData | null> {
+    if (!db || userId === LOCAL_GUEST_UID) return null;
     try {
       const saveRef = doc(db, 'saves', userId);
       const snap = await getDoc(saveRef);
@@ -202,6 +316,7 @@ export class FirebaseService {
     costumeId: string;
     rocketSkinId: string;
   }): Promise<void> {
+    if (!db || entry.userId === LOCAL_GUEST_UID) return;
     try {
       const entryRef = doc(db, 'leaderboards', entry.userId);
       await setDoc(entryRef, {
@@ -217,6 +332,7 @@ export class FirebaseService {
    * Fetch Top High Scores
    */
   public static async getTopScores(limitCount = 20) {
+    if (!db) return [];
     try {
       const q = query(collection(db, 'leaderboards'), orderBy('score', 'desc'), limit(limitCount));
       const snap = await getDocs(q);
@@ -247,10 +363,16 @@ export class FirebaseService {
    * Create a new 1v1 multiplayer match room
    */
   public static async createMatchRoom(
-    hostUser: User,
+    hostUser: AppUser,
     mode: 'BATTLE' | 'RACE',
     initialState: Partial<PlayerOnlineState>
   ): Promise<RoomData> {
+    if (!auth || !db) {
+      throw new Error('Online multiplayer needs a Firebase connection. This build is running in local-only mode.');
+    }
+    if (hostUser.isLocalGuest) {
+      throw new Error('Sign in (or create an online guest) to host an online multiplayer match.');
+    }
     const roomId = 'room_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const roomCode = this.generateRoomCode();
     const seed = Math.floor(Math.random() * 1000000);
@@ -316,9 +438,15 @@ export class FirebaseService {
    */
   public static async joinRoomByCode(
     roomCode: string,
-    guestUser: User,
+    guestUser: AppUser,
     initialState: Partial<PlayerOnlineState>
   ): Promise<RoomData | null> {
+    if (!auth || !db) {
+      throw new Error('Online multiplayer needs a Firebase connection. This build is running in local-only mode.');
+    }
+    if (guestUser.isLocalGuest) {
+      throw new Error('Sign in (or create an online guest) to join an online multiplayer match.');
+    }
     try {
       const q = query(collection(db, 'rooms'), orderBy('createdAt', 'desc'), limit(50));
       const snap = await getDocs(q);
@@ -397,6 +525,9 @@ export class FirebaseService {
    * Listen to real-time room updates via onSnapshot
    */
   public static subscribeToRoom(roomId: string, onUpdate: (room: RoomData | null) => void): () => void {
+    if (!db) {
+      return () => {};
+    }
     const roomRef = doc(db, 'rooms', roomId);
     return onSnapshot(roomRef, (snap) => {
       if (snap.exists()) {
@@ -417,6 +548,7 @@ export class FirebaseService {
     userId: string,
     playerState: Partial<PlayerOnlineState>
   ): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       const snap = await getDoc(roomRef);
@@ -455,6 +587,7 @@ export class FirebaseService {
    * Claim a planet in Battle Mode
    */
   public static async claimPlanet(roomId: string, planetId: string, userId: string, userName?: string): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       const snap = await getDoc(roomRef);
@@ -497,6 +630,7 @@ export class FirebaseService {
    * Deploy an orbital trap on a claimed planet
    */
   public static async deployTrap(roomId: string, planetId: string, trapType: TrapInfo['type'], userId: string, userName?: string): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       const snap = await getDoc(roomRef);
@@ -544,6 +678,7 @@ export class FirebaseService {
    * Detonate trap on planet
    */
   public static async detonateTrap(roomId: string, planetId: string, detonatedByUserId: string): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       const snap = await getDoc(roomRef);
@@ -586,6 +721,7 @@ export class FirebaseService {
    * Trigger trap damage when opponent enters trapped planet
    */
   public static async triggerTrapDamage(roomId: string, planetId: string, victimId: string, victimName: string, damage = 25): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       const snap = await getDoc(roomRef);
@@ -632,6 +768,7 @@ export class FirebaseService {
    * Finish match and declare winner
    */
   public static async finishMatch(roomId: string, winnerId: string, winnerName: string): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       await updateDoc(roomRef, {
@@ -649,6 +786,7 @@ export class FirebaseService {
    * Leave / close room
    */
   public static async leaveRoom(roomId: string, userId: string): Promise<void> {
+    if (!db) return;
     try {
       const roomRef = doc(db, 'rooms', roomId);
       const snap = await getDoc(roomRef);
@@ -684,6 +822,7 @@ export class FirebaseService {
     planetsVisited: number,
     levelReached: number = 1
   ): Promise<boolean> {
+    if (!db || userId === LOCAL_GUEST_UID) return false;
     try {
       const todayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const entryRef = doc(db, 'daily_leaderboards', todayKey, 'entries', userId);
@@ -723,6 +862,7 @@ export class FirebaseService {
     dateKey: string = new Date().toISOString().split('T')[0],
     maxLimit: number = 25
   ): Promise<any[]> {
+    if (!db) return [];
     try {
       const entriesRef = collection(db, 'daily_leaderboards', dateKey, 'entries');
       const q = query(entriesRef, orderBy('score', 'desc'), limit(maxLimit));
@@ -742,6 +882,7 @@ export class FirebaseService {
    * Save Home Planet sanctuary base to Firestore
    */
   public static async saveHomePlanet(userId: string, homePlanet: any): Promise<boolean> {
+    if (!db || userId === LOCAL_GUEST_UID) return false;
     try {
       const docRef = doc(db, 'home_planets', userId);
       await setDoc(docRef, {
@@ -760,6 +901,7 @@ export class FirebaseService {
    * Load Home Planet sanctuary base from Firestore
    */
   public static async loadHomePlanet(userId: string): Promise<any | null> {
+    if (!db || userId === LOCAL_GUEST_UID) return null;
     try {
       const docRef = doc(db, 'home_planets', userId);
       const snap = await getDoc(docRef);

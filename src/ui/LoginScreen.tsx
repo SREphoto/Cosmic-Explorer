@@ -19,9 +19,10 @@ import {
   Swords,
   Layers,
   X,
-  Tv
+  Tv,
+  CloudOff
 } from 'lucide-react';
-import { FirebaseService } from '../core/firebase';
+import { FirebaseService, isFirebaseAvailable, type AppUser } from '../core/firebase';
 import { StorageManager } from '../core/Storage';
 import { UserSavedData } from '../types/game';
 
@@ -33,7 +34,7 @@ import hangarBannerUrl from '../assets/images/cosmic_hangar_banner_1786696559208
 import trophyBannerUrl from '../assets/images/trophy_badges_banner_1786696596962.jpg';
 
 interface LoginScreenProps {
-  onLoginSuccess: (userData: UserSavedData, userDisplayName: string) => void;
+  onLoginSuccess: (userData: UserSavedData, userDisplayName: string, user: AppUser) => void;
   onClose?: () => void;
 }
 
@@ -399,7 +400,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
     };
   }, [showcaseTab]);
 
-  const handleAuthResult = async (user: any) => {
+  const handleAuthResult = async (user: AppUser) => {
     try {
       setLoading(true);
       setError(null);
@@ -419,18 +420,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
       }
 
       const name = user.displayName || displayName || (user.isAnonymous ? 'Cosmic Cadette' : 'Star Commander');
-      onLoginSuccess(authoritativeData, name);
+      onLoginSuccess(authoritativeData, name, user);
     } catch (err: any) {
       console.error('Save sync error:', err);
       // Fallback to local save
       const localData = StorageManager.loadData();
-      onLoginSuccess(localData, user.displayName || 'Star Commander');
+      onLoginSuccess(localData, user.displayName || 'Star Commander', user);
     } finally {
       setLoading(false);
     }
   };
 
+  const firebaseReady = isFirebaseAvailable();
+
   const handleGoogleLogin = async () => {
+    if (!firebaseReady) {
+      setError('Cloud sign-in is unavailable in this build. Play as Guest — progress saves on this device.');
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -446,6 +453,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firebaseReady) {
+      setError('Cloud sign-in is unavailable in this build. Play as Guest — progress saves on this device.');
+      return;
+    }
     if (!email || !password) {
       setError('Please provide email and password.');
       return;
@@ -754,6 +765,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                 </p>
               </div>
 
+              {/* Offline Build Banner — Firebase login is optional and never required to play */}
+              {!firebaseReady && (
+                <div className="mb-4 p-3 bg-amber-950/40 border border-amber-500/40 rounded-xl flex items-start gap-2.5 text-left">
+                  <CloudOff className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-amber-100/90 leading-snug">
+                    <strong className="text-amber-300">Offline Mode:</strong> cloud login isn't available in this
+                    build, so progress is saved on this device only. Use <strong className="text-white">Play as Guest</strong>{' '}
+                    to start instantly.
+                  </div>
+                </div>
+              )}
+
               {/* Tab Switcher */}
               <div className="grid grid-cols-2 gap-1 p-1 bg-slate-800/80 rounded-xl border border-slate-700/60 mb-4">
                 <button
@@ -799,7 +822,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                 id="btn-google-login"
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={loading}
+                disabled={loading || !firebaseReady}
                 className="w-full mb-3.5 py-2.5 px-4 bg-slate-800 hover:bg-slate-700/90 border border-slate-600 rounded-xl font-medium text-xs flex items-center justify-center gap-2.5 transition-all text-slate-200 hover:text-white disabled:opacity-50 active:scale-[0.98] shadow-sm"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -895,7 +918,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onClos
                 <button
                   id="btn-submit-auth"
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !firebaseReady}
                   className="w-full py-2.5 px-4 bg-gradient-to-r from-sky-500 to-amber-500 hover:from-sky-400 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] mt-1"
                 >
                   {loading ? (

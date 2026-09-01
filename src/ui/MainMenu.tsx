@@ -24,7 +24,7 @@ import { ACHIEVEMENTS, CHECKPOINT_PLANETS, SECTOR_MILITARY_MEDALS } from '../cor
 import { CosmicEventSystem } from '../systems/CosmicEventSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { audioEngine } from '../core/AudioEngine';
-import { FirebaseService, auth } from '../core/firebase';
+import { FirebaseService, type AppUser } from '../core/firebase';
 import heroArtworkUrl from '../assets/images/little_galaxy_hero_1786680040346.jpg';
 import mainBgUrl from '../assets/images/main_menu_cosmic_bg_1786730822424.jpg';
 import btnHangarUrl from '../assets/images/button_bg_hangar_1786730840997.jpg';
@@ -71,10 +71,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onClaimDailyChallenge
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>(DailyChallengeSystem.getTimeUntilNextReset());
-  const [user, setUser] = useState<typeof auth.currentUser>(null);
+  const [user, setUser] = useState<AppUser>(() => FirebaseService.getCurrentUser());
 
   useEffect(() => {
-    const unsub = FirebaseService.onAuthChange((u) => setUser(u));
+    const unsub = FirebaseService.onAuthChange((u) => setUser(u ?? FirebaseService.getCurrentUser()));
     return () => unsub();
   }, []);
 
@@ -147,18 +147,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               onOpenLogin();
             }}
             className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
-              user
+              user && !user.isLocalGuest
                 ? 'bg-indigo-950/80 border-indigo-500/40 text-indigo-200 hover:border-indigo-400'
                 : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:text-white'
             }`}
-            title={user ? `Signed in as ${user.displayName || 'Explorer'}` : 'Sign in / Play Online'}
+            title={user && !user.isLocalGuest
+              ? `Signed in as ${user.displayName || 'Explorer'}`
+              : 'Playing as guest — progress saves on this device. Click to sign in.'}
           >
             {user?.photoURL ? (
               <img src={user.photoURL} alt="Avatar" className="w-4 h-4 rounded-full" />
             ) : (
               <User className="w-3.5 h-3.5 text-indigo-400" />
             )}
-            <span className="hidden sm:inline">{user ? (user.displayName?.split(' ')[0] || 'Pilot') : 'Login'}</span>
+            <span className="hidden sm:inline">{user && !user.isLocalGuest ? (user.displayName?.split(' ')[0] || 'Pilot') : 'Guest'}</span>
           </button>
 
           {/* Ribbons / Uniform Medal Chest Quick Pill */}

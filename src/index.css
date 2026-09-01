@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 @keyframes modalSlideUp {
   from {
     opacity: 0;
@@ -115,3 +117,844 @@
 .animate-title-breathe {
   animation: title-breathe 4s ease-in-out infinite;
 }
+
+/* Full-screen sanctuary town and object-driven building interiors */
+:root {
+  color-scheme: dark;
+}
+
+.sanctuary-shell,
+.sanctuary-shell * {
+  box-sizing: border-box;
+}
+
+.sanctuary-shell {
+  --biome-color: #22c55e;
+  --biome-dark: #15803d;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  color: #f8fafc;
+  background: #030712;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  user-select: none;
+  isolation: isolate;
+}
+
+.sanctuary-main {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.sanctuary-topbar {
+  position: absolute;
+  z-index: 100;
+  top: max(12px, env(safe-area-inset-top));
+  left: 14px;
+  right: 14px;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(4, 10, 25, 0.92), rgba(15, 23, 42, 0.78));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), inset 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.sanctuary-location,
+.sanctuary-wallet,
+.sanctuary-location-mark,
+.sanctuary-icon-button,
+.sanctuary-wallet > span {
+  display: flex;
+  align-items: center;
+}
+
+.sanctuary-location {
+  min-width: 0;
+  gap: 9px;
+}
+
+.sanctuary-location-mark {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--biome-color) 55%, transparent);
+  border-radius: 13px;
+  color: var(--biome-color);
+  background: color-mix(in srgb, var(--biome-dark) 30%, rgba(15, 23, 42, 0.8));
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--biome-color) 14%, transparent);
+}
+
+.sanctuary-location-mark svg,
+.sanctuary-icon-button svg,
+.sanctuary-wallet svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sanctuary-location > div:last-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sanctuary-location span {
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sanctuary-location small {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.sanctuary-wallet {
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.sanctuary-wallet > span {
+  height: 34px;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 11px;
+  color: #dbeafe;
+  background: rgba(2, 6, 23, 0.68);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sanctuary-wallet > span:first-child { color: #fde68a; }
+.sanctuary-wallet > span:nth-child(2) { color: #a5f3fc; }
+.sanctuary-wallet > span:nth-child(3) { color: #f0abfc; }
+
+.sanctuary-icon-button {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.78);
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.sanctuary-icon-button:hover {
+  color: #fff;
+  border-color: rgba(125, 211, 252, 0.55);
+  background: rgba(51, 65, 85, 0.9);
+  transform: translateY(-1px);
+}
+
+.sanctuary-notice {
+  position: absolute;
+  z-index: 140;
+  top: max(84px, calc(env(safe-area-inset-top) + 76px));
+  left: 50%;
+  max-width: min(580px, calc(100vw - 28px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  border-radius: 13px;
+  color: #d1fae5;
+  background: rgba(6, 78, 59, 0.92);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 750;
+  transform: translateX(-50%);
+  animation: sanctuary-notice-in 280ms cubic-bezier(.2,.9,.2,1) both;
+}
+
+.sanctuary-notice svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
+@keyframes sanctuary-notice-in {
+  from { opacity: 0; transform: translate(-50%, -10px) scale(.97); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+/* Town */
+.sanctuary-town-screen,
+.sanctuary-town-viewport,
+.sanctuary-town-world {
+  width: 100%;
+  height: 100%;
+}
+
+.sanctuary-town-screen {
+  position: relative;
+  overflow: hidden;
+  background: #040817;
+}
+
+.sanctuary-town-viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.sanctuary-town-viewport::-webkit-scrollbar,
+.sanctuary-room-scroll::-webkit-scrollbar { display: none; }
+
+.sanctuary-town-world {
+  position: relative;
+  min-width: 2180px;
+  overflow: hidden;
+  background-position: center;
+  background-size: cover;
+}
+
+.sanctuary-town-world::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 19%, rgba(255,255,255,.95) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 27% 11%, rgba(167,243,208,.8) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 53% 22%, rgba(186,230,253,.9) 0 1.2px, transparent 1.9px),
+    radial-gradient(circle at 68% 8%, rgba(255,255,255,.8) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 81% 28%, rgba(216,180,254,.9) 0 1px, transparent 1.8px),
+    linear-gradient(180deg, rgba(2,6,23,.05) 0%, color-mix(in srgb, var(--biome-dark) 18%, rgba(2,6,23,.5)) 72%, rgba(2,6,23,.94) 100%);
+  background-size: 310px 230px, 420px 270px, 510px 320px, 270px 210px, 390px 250px, 100% 100%;
+}
+
+.sanctuary-aurora {
+  position: absolute;
+  top: 11%;
+  left: 15%;
+  width: 65%;
+  height: 25%;
+  opacity: .44;
+  filter: blur(30px);
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--biome-color) 75%, #38bdf8), #a855f7, transparent);
+  border-radius: 50%;
+  transform: skewY(-7deg);
+  animation: sanctuary-aurora 9s ease-in-out infinite alternate;
+}
+
+@keyframes sanctuary-aurora {
+  to { transform: translateX(8%) skewY(5deg) scaleY(.7); opacity: .25; }
+}
+
+.sanctuary-moon {
+  position: absolute;
+  z-index: 1;
+  top: 10%;
+  left: 48%;
+  width: clamp(90px, 12vh, 145px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 38px color-mix(in srgb, var(--biome-color) 42%, transparent));
+  animation: sanctuary-float 6s ease-in-out infinite;
+}
+
+.sanctuary-moon img { width: 100%; height: 100%; object-fit: contain; }
+
+@keyframes sanctuary-float { 50% { transform: translateY(-8px); } }
+
+.sanctuary-distant-ridge {
+  position: absolute;
+  z-index: 1;
+  left: -5%;
+  bottom: 23%;
+  width: 110%;
+  height: 23%;
+  pointer-events: none;
+  clip-path: polygon(0 80%, 8% 43%, 16% 71%, 24% 25%, 31% 69%, 42% 38%, 51% 77%, 61% 18%, 72% 70%, 81% 32%, 90% 66%, 100% 35%, 100% 100%, 0 100%);
+}
+
+.ridge-one { background: color-mix(in srgb, var(--biome-dark) 32%, #10172c); opacity: .9; }
+.ridge-two { bottom: 19%; background: color-mix(in srgb, var(--biome-color) 16%, #101827); opacity: .92; transform: scaleX(-1) translateY(10%); }
+
+.sanctuary-town-ground {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 29%;
+  background:
+    radial-gradient(ellipse at 40% 0, color-mix(in srgb, var(--biome-color) 40%, transparent), transparent 45%),
+    repeating-linear-gradient(94deg, transparent 0 34px, rgba(255,255,255,.025) 35px 36px),
+    linear-gradient(180deg, color-mix(in srgb, var(--biome-dark) 68%, #172033), #07101a 63%, #020617);
+  border-top: 2px solid color-mix(in srgb, var(--biome-color) 55%, transparent);
+  box-shadow: 0 -18px 45px color-mix(in srgb, var(--biome-color) 12%, transparent);
+}
+
+.sanctuary-path {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 9%;
+  height: 9%;
+  border-top: 1px solid rgba(148,163,184,.24);
+  border-bottom: 1px solid rgba(148,163,184,.18);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 92px, color-mix(in srgb, var(--biome-color) 35%, transparent) 94px 97px),
+    linear-gradient(180deg, #111827, #070d18);
+  box-shadow: inset 0 8px 18px rgba(0,0,0,.36), 0 0 26px color-mix(in srgb, var(--biome-color) 10%, transparent);
+}
+
+.sanctuary-building {
+  position: absolute;
+  z-index: 6;
+  bottom: 18%;
+  width: 270px;
+  height: min(49vh, 420px);
+  padding: 0;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition: filter 180ms ease, transform 180ms ease;
+}
+
+.sanctuary-building:hover,
+.sanctuary-building:focus-visible {
+  z-index: 9;
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--building-accent) 58%, transparent));
+  transform: translateX(-50%) translateY(-5px);
+  outline: none;
+}
+
+.sanctuary-building-name {
+  position: absolute;
+  z-index: 5;
+  top: 2%;
+  left: 50%;
+  min-width: 162px;
+  display: flex;
+  flex-direction: column;
+  padding: 7px 13px;
+  border: 1px solid color-mix(in srgb, var(--building-accent) 55%, transparent);
+  border-radius: 10px;
+  background: rgba(3, 7, 18, .9);
+  box-shadow: 0 8px 22px rgba(0,0,0,.35), inset 0 0 15px color-mix(in srgb, var(--building-accent) 8%, transparent);
+  transform: translateX(-50%);
+}
+
+.sanctuary-building-name strong {
+  color: color-mix(in srgb, var(--building-accent) 82%, white);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .075em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.sanctuary-building-name small { margin-top: 2px; color: #94a3b8; font-size: 9px; font-weight: 700; }
+
+.sanctuary-building-art {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 100%;
+  height: 84%;
+  transform: translateX(-50%);
+}
+
+.sanctuary-building-sprite {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 13px rgba(0,0,0,.55));
+}
+
+.sanctuary-building-sprite.habitat { transform: scale(1.2); }
+
+.sanctuary-building-door {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 5px;
+  min-width: 64px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--building-accent) 70%, transparent);
+  border-radius: 8px 8px 3px 3px;
+  color: color-mix(in srgb, var(--building-accent) 70%, white);
+  background: rgba(2,6,23,.9);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--building-accent) 23%, transparent);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  transform: translateX(-50%);
+  opacity: .82;
+}
+
+.sanctuary-building:hover .sanctuary-building-door { color: #020617; background: var(--building-accent); opacity: 1; }
+
+.sanctuary-building-facade {
+  position: absolute;
+  inset: 12% 3% 0;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--building-accent) 60%, #334155);
+  border-radius: 55px 55px 12px 12px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(255,255,255,.05) 32px 34px),
+    linear-gradient(145deg, color-mix(in srgb, var(--building-accent) 16%, #243149), #070b16 70%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,.6), 0 20px 22px rgba(0,0,0,.45);
+}
+
+.sanctuary-building-facade img { position: absolute; top: 14%; left: 50%; width: 42%; height: 42%; object-fit: contain; transform: translateX(-50%); }
+.facade-door { position: absolute; left: 42%; bottom: 0; width: 16%; height: 36%; border: 1px solid var(--building-accent); border-bottom: 0; border-radius: 18px 18px 0 0; background: linear-gradient(90deg,#111827,#334155,#111827); }
+.facade-window { position: absolute; right: 12%; bottom: 24%; width: 21%; height: 21%; border: 2px solid #fb7185; border-radius: 8px; background: rgba(251,113,133,.25); box-shadow: 0 0 20px rgba(251,113,133,.35); }
+.market-facade { border-radius: 32px 32px 9px 9px; background: linear-gradient(145deg,#3b164d,#17102c 55%,#090c18); }
+.market-awning { position: absolute; z-index: 4; left: 5%; right: 5%; top: 49%; height: 19%; border-radius: 6px 6px 15px 15px; background: repeating-linear-gradient(90deg,#ec4899 0 24px,#f8fafc 24px 48px,#7c3aed 48px 72px); clip-path: polygon(0 0,100% 0,94% 100%,6% 100%); box-shadow: 0 8px 15px rgba(0,0,0,.4); }
+
+.sanctuary-greenhouse-art {
+  position: absolute;
+  inset: 12% 3% 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 25px 15px;
+  overflow: hidden;
+  border: 2px solid #34d399;
+  border-radius: 50% 50% 14px 14px;
+  background: linear-gradient(150deg, rgba(167,243,208,.34), rgba(3,105,161,.18) 48%, rgba(2,6,23,.75));
+  box-shadow: inset 0 0 45px rgba(52,211,153,.2), 0 20px 22px rgba(0,0,0,.45);
+}
+
+.sanctuary-greenhouse-art::before,
+.sanctuary-greenhouse-art::after { content:""; position:absolute; inset:0 50%; width:1px; background:rgba(167,243,208,.45); }
+.sanctuary-greenhouse-art::after { inset: 0; width:auto; border-radius:50%; border:1px solid rgba(167,243,208,.32); transform:scale(.67,1); }
+.sanctuary-greenhouse-art img { z-index:2; width:31%; height:45%; object-fit:contain; filter:drop-shadow(0 0 10px #34d399); }
+
+.sanctuary-landing-art { position:absolute; inset: 12% 3% 0; display:flex; align-items:center; justify-content:center; border-bottom:3px solid #c084fc; border-radius:50%; background:radial-gradient(ellipse at center,rgba(192,132,252,.32),transparent 60%); }
+.sanctuary-landing-art > span:last-child { z-index:2; font-size:clamp(70px,13vh,130px); filter:drop-shadow(0 14px 12px rgba(0,0,0,.5)); animation:sanctuary-float 4s ease-in-out infinite; }
+.landing-beam { position:absolute; bottom:4%; width:74%; height:70%; clip-path:polygon(38% 0,62% 0,100% 100%,0 100%); background:linear-gradient(180deg,rgba(216,180,254,.1),rgba(192,132,252,.32)); filter:blur(3px); }
+
+.sanctuary-town-decor {
+  position: absolute;
+  z-index: 7;
+  bottom: 17%;
+  width: 58px;
+  height: 66px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 8px 6px rgba(0,0,0,.55));
+}
+.sanctuary-town-decor::after { content:""; position:absolute; left:10%; right:10%; bottom:-2px; height:8px; border:1px solid color-mix(in srgb,var(--decor-color) 70%,transparent); border-radius:50%; background:color-mix(in srgb,var(--decor-color) 20%,rgba(2,6,23,.8)); box-shadow:0 0 13px color-mix(in srgb,var(--decor-color) 35%,transparent); }
+.sanctuary-town-decor img { position:relative; z-index:1; width:100%; height:100%; object-fit:contain; transition:transform 160ms ease; }
+.sanctuary-town-decor:hover img { transform:translateY(-5px) scale(1.08); }
+
+.sanctuary-avatar {
+  position: absolute;
+  z-index: 18;
+  bottom: 10.5%;
+  width: clamp(55px, 8vh, 82px);
+  height: clamp(76px, 11vh, 110px);
+  pointer-events: none;
+  filter: drop-shadow(0 9px 7px rgba(0,0,0,.6));
+  transition: left 70ms linear;
+  transform-origin: center bottom;
+}
+.sanctuary-avatar img { position:relative; z-index:2; width:100%; height:100%; object-fit:contain; }
+.sanctuary-avatar-beam { position:absolute; z-index:0; left:16%; right:16%; bottom:-5px; height:10px; border-radius:50%; background:color-mix(in srgb,var(--biome-color) 28%,rgba(2,6,23,.8)); box-shadow:0 0 16px var(--biome-color); }
+.sanctuary-avatar.is-walking img { animation:sanctuary-step .22s ease-in-out infinite alternate; }
+@keyframes sanctuary-step { to { transform:translateY(-3px) rotate(1deg); } }
+
+.sanctuary-town-prompt {
+  position: absolute;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(max(72px, env(safe-area-inset-bottom) + 62px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 7px 6px 13px;
+  border: 1px solid rgba(148,163,184,.24);
+  border-radius: 14px;
+  color: #cbd5e1;
+  background: rgba(3,7,18,.84);
+  box-shadow: 0 10px 28px rgba(0,0,0,.32);
+  backdrop-filter: blur(12px);
+  font-size: 11px;
+  transform: translateX(-50%);
+}
+.sanctuary-town-prompt span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sanctuary-town-prompt strong { color:#fff; }
+.sanctuary-town-prompt button { flex:0 0 auto; padding:7px 11px; border:0; border-radius:9px; color:#052e22; background:linear-gradient(135deg,var(--biome-color),#67e8f9); font-size:10px; font-weight:900; cursor:pointer; }
+
+.sanctuary-walk-controls {
+  position: absolute;
+  z-index: 45;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 750;
+  transform: translateX(-50%);
+}
+.sanctuary-walk-controls button { width:46px; height:42px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(125,211,252,.28); border-radius:13px; color:#bae6fd; background:rgba(7,15,32,.88); box-shadow:inset 0 0 18px rgba(56,189,248,.08); cursor:pointer; touch-action:none; }
+.sanctuary-walk-controls button:active { color:#020617; background:#67e8f9; transform:scale(.95); }
+.sanctuary-walk-controls svg { width:23px; height:23px; }
+.mobile-walk-hint { display:none; }
+
+/* Full-screen interior rooms */
+.sanctuary-room {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #060914;
+}
+
+.sanctuary-room::after {
+  content:"";
+  position:absolute;
+  z-index:3;
+  inset:0;
+  pointer-events:none;
+  box-shadow: inset 0 -70px 120px rgba(0,0,0,.5), inset 0 80px 100px rgba(0,0,0,.28);
+}
+
+.sanctuary-room-title {
+  position:absolute;
+  z-index:15;
+  top:max(86px,calc(env(safe-area-inset-top) + 78px));
+  left:20px;
+  display:flex;
+  flex-direction:column;
+  pointer-events:none;
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.8));
+}
+.sanctuary-room-title > span { color:#fff; font-size:clamp(17px,2.4vw,26px); font-weight:950; letter-spacing:-.03em; }
+.sanctuary-room-title small { margin-top:2px; color:#94a3b8; font-size:10px; font-weight:650; }
+
+.sanctuary-room-scroll {
+  position:absolute;
+  z-index:1;
+  inset:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:none;
+  touch-action:pan-x;
+}
+
+.sanctuary-room-world {
+  position:relative;
+  width:max(100%, 1420px);
+  height:100%;
+  min-height:520px;
+  display:flex;
+  align-items:flex-end;
+  gap:clamp(34px,5vw,80px);
+  padding:150px 70px max(115px,14vh);
+  overflow:hidden;
+}
+
+.sanctuary-room-floor {
+  position:absolute;
+  z-index:0;
+  left:0;
+  right:0;
+  bottom:0;
+  height:31%;
+  border-top:2px solid rgba(148,163,184,.3);
+  background:
+    repeating-linear-gradient(90deg,transparent 0 118px,rgba(255,255,255,.035) 119px 121px),
+    repeating-linear-gradient(0deg,transparent 0 46px,rgba(255,255,255,.03) 47px 48px),
+    linear-gradient(180deg,#192337,#070b13);
+  transform:perspective(450px) rotateX(5deg);
+  transform-origin:bottom;
+}
+
+.sanctuary-room-stars { position:absolute; inset:0; background-image:radial-gradient(circle at 20% 30%,#fff 0 1px,transparent 1.6px),radial-gradient(circle at 70% 20%,#7dd3fc 0 1px,transparent 1.8px),radial-gradient(circle at 46% 72%,#fde68a 0 1px,transparent 1.6px); background-size:240px 190px,340px 260px,420px 330px; opacity:.35; }
+.sanctuary-wall-stripe { position:absolute; left:0; right:0; top:48%; height:5px; background:linear-gradient(90deg,transparent,var(--biome-color),#38bdf8,var(--biome-color),transparent); opacity:.35; box-shadow:0 0 24px var(--biome-color); }
+.sanctuary-window { position:absolute; top:14%; left:50%; width:min(280px,24vw); height:min(220px,25vh); display:flex; align-items:center; justify-content:center; overflow:hidden; border:9px solid #1e293b; border-radius:50% 50% 18px 18px; background:#020617; box-shadow:inset 0 0 30px rgba(56,189,248,.2),0 0 0 2px rgba(125,211,252,.25); transform:translateX(-50%); }
+.sanctuary-window::after { content:""; position:absolute; inset:0; border-left:2px solid rgba(148,163,184,.3); border-right:2px solid rgba(148,163,184,.3); border-radius:50%; transform:scaleX(.52); }
+.sanctuary-window img { width:77%; height:77%; object-fit:contain; filter:drop-shadow(0 0 22px var(--biome-color)); }
+
+.sanctuary-zone { position:relative; z-index:5; flex:0 0 auto; display:flex; align-items:flex-end; gap:18px; padding:26px 20px 12px; border:1px solid rgba(148,163,184,.16); border-bottom:3px solid rgba(148,163,184,.32); border-radius:18px 18px 6px 6px; background:linear-gradient(180deg,rgba(15,23,42,.28),rgba(2,6,23,.62)); box-shadow:0 18px 25px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.04); }
+.sanctuary-zone-label { position:absolute; top:8px; left:13px; color:#94a3b8; font-size:8px; font-weight:900; letter-spacing:.16em; white-space:nowrap; }
+.sanctuary-object-shelf { display:flex; align-items:flex-end; gap:12px; min-height:118px; }
+
+.sanctuary-scene-object {
+  --object-accent:#38bdf8;
+  position:relative;
+  z-index:4;
+  width:122px;
+  min-width:122px;
+  height:150px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  padding:5px 5px 9px;
+  border:1px solid transparent;
+  border-radius:42px 42px 12px 12px;
+  color:#e2e8f0;
+  background:transparent;
+  cursor:pointer;
+  transition:transform 180ms ease,background 180ms ease,border-color 180ms ease,filter 180ms ease;
+}
+.sanctuary-scene-object.size-small { width:94px; min-width:94px; height:120px; }
+.sanctuary-scene-object.size-large { width:160px; min-width:160px; height:190px; }
+.sanctuary-scene-object:hover,.sanctuary-scene-object:focus-visible,.sanctuary-scene-object.is-selected { border-color:color-mix(in srgb,var(--object-accent) 70%,transparent); background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--object-accent) 12%,rgba(2,6,23,.5))); filter:drop-shadow(0 0 12px color-mix(in srgb,var(--object-accent) 30%,transparent)); transform:translateY(-7px); outline:none; }
+.sanctuary-object-glow { position:absolute; z-index:0; left:17%; right:17%; bottom:35px; height:14px; border:1px solid color-mix(in srgb,var(--object-accent) 65%,transparent); border-radius:50%; background:color-mix(in srgb,var(--object-accent) 17%,rgba(2,6,23,.75)); box-shadow:0 0 18px color-mix(in srgb,var(--object-accent) 32%,transparent); }
+.sanctuary-object-art { position:relative; z-index:2; width:78px; height:78px; display:flex; align-items:center; justify-content:center; margin:auto 0 2px; }
+.size-small .sanctuary-object-art { width:57px; height:57px; }
+.size-large .sanctuary-object-art { width:112px; height:112px; }
+.sanctuary-object-art img { width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 8px 6px rgba(0,0,0,.48)); transition:transform 180ms ease; }
+.sanctuary-scene-object:hover .sanctuary-object-art img { transform:scale(1.08); }
+.sanctuary-object-emoji { font-size:54px; line-height:1; filter:drop-shadow(0 7px 5px rgba(0,0,0,.5)); }
+.size-small .sanctuary-object-emoji { font-size:42px; }
+.size-large .sanctuary-object-emoji { font-size:76px; }
+.sanctuary-object-label { z-index:2; width:100%; overflow:hidden; color:#f8fafc; font-size:9px; font-weight:850; line-height:1.15; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+.sanctuary-object-hint { z-index:2; width:100%; margin-top:2px; overflow:hidden; color:color-mix(in srgb,var(--object-accent) 68%,#cbd5e1); font-size:8px; font-weight:700; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+.sanctuary-object-lock { position:absolute; z-index:6; top:35%; left:50%; width:22px; height:22px; padding:4px; border-radius:50%; color:#fecdd3; background:#881337; transform:translate(-50%,-50%); }
+.sanctuary-scene-object.is-locked .sanctuary-object-art { opacity:.38; filter:grayscale(.6); }
+
+/* Habitat */
+.habitat-room { background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--biome-color) 14%,transparent),transparent 32%),linear-gradient(135deg,#10182a,#040712 72%); }
+.habitat-world { align-items:flex-end; }
+.habitat-world > .sanctuary-scene-object { z-index:5; }
+.construction-zone { width:230px; justify-content:center; border-color:rgba(251,191,36,.22); }
+.biome-zone { width:660px; overflow:hidden; border-color:rgba(192,132,252,.22); }
+.living-zone { width:max-content; min-width:420px; border-color:rgba(52,211,153,.2); }
+.biome-shelf { overflow:visible; }
+.furniture-shelf { min-width:360px; }
+.sanctuary-name-plaque { position:relative; z-index:6; align-self:center; min-width:190px; display:flex; flex-direction:column; align-items:center; gap:3px; padding:14px 18px; border:1px solid rgba(251,191,36,.35); border-radius:14px; color:#fde68a; background:linear-gradient(145deg,#3f2d18,#17120d); box-shadow:inset 0 0 18px rgba(251,191,36,.09),0 14px 24px rgba(0,0,0,.35); cursor:pointer; }
+.sanctuary-name-plaque svg { width:15px;height:15px; }
+.sanctuary-name-plaque span { max-width:180px; overflow:hidden; font-family:Georgia,serif; font-size:17px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.sanctuary-name-plaque small { color:#a8a29e; font-size:8px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+.sanctuary-empty-room { min-width:330px; height:90px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px dashed rgba(148,163,184,.3); border-radius:14px; color:#94a3b8; background:rgba(2,6,23,.25); font-size:10px; cursor:pointer; }
+.sanctuary-empty-room svg { width:17px;height:17px; }
+
+/* Greenhouse */
+.greenhouse-room { background:linear-gradient(180deg,#082f3b,#052e2b 55%,#031411); }
+.greenhouse-world { gap:55px; padding-left:65px; background:radial-gradient(circle at 48% 36%,rgba(52,211,153,.18),transparent 33%); }
+.greenhouse-glass { position:absolute; inset:0; opacity:.42; background:repeating-linear-gradient(75deg,transparent 0 160px,rgba(167,243,208,.12) 162px 164px),repeating-linear-gradient(0deg,transparent 0 95px,rgba(167,243,208,.08) 97px 99px); }
+.greenhouse-stars { position:absolute; inset:0; background-image:radial-gradient(circle,#d1fae5 0 1px,transparent 1.6px); background-size:87px 69px; opacity:.2; }
+.greenhouse-floor { background:repeating-linear-gradient(90deg,transparent 0 89px,rgba(110,231,183,.08) 90px 92px),linear-gradient(180deg,#143b31,#071d18 62%,#03100e); border-color:rgba(52,211,153,.5); }
+.seed-bank-zone { width:max-content; max-width:none; border-color:rgba(52,211,153,.3); }
+.seed-shelf { min-height:125px; }
+.planter-zone { min-width:690px; border-color:rgba(110,231,183,.35); }
+.sanctuary-planters { display:flex; align-items:flex-end; gap:13px; min-height:150px; }
+.sanctuary-planter { position:relative; width:95px; min-width:95px; height:145px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding:0 5px 11px; border:1px solid transparent; border-radius:40px 40px 12px 12px; color:#d1fae5; background:transparent; cursor:pointer; transition:180ms ease; }
+.sanctuary-planter:hover,.sanctuary-planter.is-selected { border-color:rgba(52,211,153,.55); background:linear-gradient(180deg,transparent,rgba(6,78,59,.35)); transform:translateY(-5px); }
+.sanctuary-planter.is-ready { animation:planter-ready 1.3s ease-in-out infinite alternate; }
+@keyframes planter-ready { to { filter:drop-shadow(0 0 14px #fbbf24); } }
+.sanctuary-planter img { position:relative; z-index:3; width:78px; height:85px; object-fit:contain; transform-origin:center bottom; transition:transform .25s ease; }
+.planter-soil { position:absolute; z-index:2; bottom:27px; width:75px; height:27px; border:2px solid #64748b; border-radius:4px 4px 30px 30px; background:linear-gradient(#422006,#1c1917); box-shadow:0 8px 10px rgba(0,0,0,.4); }
+.empty-soil { position:relative; z-index:4; width:46px; height:46px; display:flex; align-items:center; justify-content:center; margin-bottom:28px; border:1px dashed #34d399; border-radius:50%; color:#6ee7b7; font-size:26px; }
+.planter-label { position:absolute; z-index:4; bottom:7px; left:3px; right:3px; overflow:hidden; font-size:8px; font-weight:800; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+.planter-number { position:absolute; z-index:4; top:15px; right:9px; width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#052e16;background:#6ee7b7;font-size:8px;font-weight:900; }
+
+/* Vault */
+.vault-room { background:radial-gradient(circle at 48% 20%,rgba(56,189,248,.16),transparent 30%),linear-gradient(145deg,#101b32,#050813 67%); }
+.vault-world { justify-content:flex-start; gap:55px; }
+.vault-pipes { position:absolute; top:20%; left:0; right:0; height:16%; border-top:13px solid #334155; border-bottom:8px solid #1e293b; background:repeating-linear-gradient(90deg,#475569 0 40px,#1e293b 41px 48px); box-shadow:0 8px 20px rgba(0,0,0,.4); }
+.vault-floor { background:repeating-linear-gradient(90deg,transparent 0 94px,rgba(56,189,248,.09) 95px 98px),linear-gradient(180deg,#263349,#080e1c); border-color:rgba(56,189,248,.45); }
+.cargo-zone { width:650px; border-color:rgba(56,189,248,.28); }
+.sanctuary-cargo-bays { display:flex; gap:14px; }
+.sanctuary-cargo-crate { --crate-color:#38bdf8; position:relative; width:138px; height:155px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding:9px; overflow:hidden; border:2px solid color-mix(in srgb,var(--crate-color) 45%,#475569); border-radius:12px; color:#e2e8f0; background:linear-gradient(145deg,#273449,#0b1220); box-shadow:inset 0 0 24px rgba(0,0,0,.45),0 12px 20px rgba(0,0,0,.36); cursor:pointer; transition:180ms ease; }
+.sanctuary-cargo-crate::before,.sanctuary-cargo-crate::after { content:"";position:absolute;background:color-mix(in srgb,var(--crate-color) 36%,#334155); }
+.sanctuary-cargo-crate::before { inset:15px 0 auto;height:7px; }
+.sanctuary-cargo-crate::after { inset:0 auto 0 16px;width:7px; }
+.sanctuary-cargo-crate:hover,.sanctuary-cargo-crate.is-selected { border-color:var(--crate-color); transform:translateY(-6px); box-shadow:inset 0 0 24px rgba(0,0,0,.45),0 0 22px color-mix(in srgb,var(--crate-color) 35%,transparent); }
+.sanctuary-cargo-crate img { position:absolute; z-index:3; top:18px; width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 7px 6px rgba(0,0,0,.5)); }
+.sanctuary-cargo-crate strong { z-index:3;color:#fff;font-size:23px;line-height:1; }
+.sanctuary-cargo-crate span { z-index:3;margin-top:3px;color:color-mix(in srgb,var(--crate-color) 75%,white);font-size:9px;font-weight:900;text-transform:uppercase; }
+.sanctuary-cargo-crate small { z-index:3;margin-top:3px;color:#94a3b8;font-size:8px;font-weight:700; }
+
+/* Workshop */
+.workshop-room { background:radial-gradient(circle at 50% 42%,rgba(251,113,133,.12),transparent 33%),linear-gradient(155deg,#25121a,#0d0d18 57%,#030712); }
+.workshop-world { padding-left:55px;padding-right:55px; }
+.workshop-gantry { position:absolute; top:21%; left:0; right:0;height:54px;border-top:7px solid #475569;border-bottom:10px solid #1e293b;background:repeating-linear-gradient(135deg,#334155 0 20px,#1e293b 21px 39px);box-shadow:0 10px 24px rgba(0,0,0,.45); }
+.workshop-sparks { position:absolute; inset:0; background-image:radial-gradient(circle,#fb7185 0 1px,transparent 1.8px),radial-gradient(circle,#fbbf24 0 1px,transparent 1.7px);background-position:0 0,30px 40px;background-size:95px 120px,140px 170px;opacity:.18; }
+.workshop-floor { border-color:rgba(251,113,133,.45);background:repeating-linear-gradient(90deg,transparent 0 114px,rgba(251,113,133,.07) 115px 118px),linear-gradient(180deg,#35242c,#110b10 68%,#070306); }
+.tool-zone { width:max-content;border-color:rgba(251,113,133,.28); }
+.sanctuary-tool-benches { display:flex;align-items:flex-end;gap:16px; }
+.sanctuary-workbench { position:relative;width:145px;height:177px;display:flex;align-items:flex-end;justify-content:center;border-bottom:15px solid #5b3a2d;background:linear-gradient(90deg,transparent 11%,#3f2a25 12% 17%,transparent 18% 82%,#3f2a25 83% 88%,transparent 89%); }
+.sanctuary-workbench::after { content:"";position:absolute;left:0;right:0;bottom:0;height:29px;border:2px solid #64748b;border-radius:5px;background:linear-gradient(#5b3a2d,#2d1c18);box-shadow:0 10px 13px rgba(0,0,0,.42); }
+.sanctuary-workbench .sanctuary-scene-object { z-index:3;margin-bottom:14px; }
+.workbench-lamp { position:absolute;z-index:1;top:23px;left:50%;width:50px;height:50px;border-radius:50%;background:rgba(251,113,133,.12);box-shadow:0 0 30px rgba(251,113,133,.34);transform:translateX(-50%); }
+.sanctuary-workbench.is-owned .workbench-lamp { background:rgba(251,191,36,.16);box-shadow:0 0 35px rgba(251,191,36,.47); }
+
+/* Market */
+.market-room { background:linear-gradient(145deg,#2b1338,#110a24 52%,#060612); }
+.market-scroll { scroll-snap-type:x proximity; }
+.market-world { width:max(100%, 5200px);padding-left:270px;padding-right:100px;gap:0;background:radial-gradient(circle at 35% 20%,rgba(236,72,153,.14),transparent 25%); }
+.market-neon { position:absolute;top:17%;left:0;right:0;color:#f9a8d4;font-size:13px;font-weight:900;letter-spacing:.36em;text-align:center;text-shadow:0 0 7px #ec4899,0 0 19px #a855f7;opacity:.58;white-space:nowrap; }
+.market-curtains { position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(236,72,153,.04) 0 185px,rgba(168,85,247,.03) 186px 370px); }
+.market-floor { border-color:rgba(244,114,182,.48);background:repeating-linear-gradient(90deg,transparent 0 90px,rgba(244,114,182,.07) 91px 93px),linear-gradient(180deg,#40224d,#140b1b 64%,#08040b); }
+.sanctuary-shopkeeper { position:absolute;z-index:5;left:65px;bottom:17%;width:165px;display:flex;flex-direction:column;align-items:center; }
+.sanctuary-shopkeeper > span { font-size:88px;filter:drop-shadow(0 10px 8px rgba(0,0,0,.5)); }
+.sanctuary-shopkeeper > div { padding:8px 10px;border:1px solid rgba(244,114,182,.4);border-radius:12px;color:#fce7f3;background:rgba(80,7,36,.75);font-size:9px;font-weight:700;line-height:1.35;text-align:center; }
+.sanctuary-market-shelves { position:relative;z-index:5;height:205px;display:flex;align-items:flex-end;gap:11px;padding:19px 18px 15px;border:1px solid rgba(244,114,182,.25);border-bottom:8px solid #5b294c;border-radius:17px 17px 4px 4px;background:linear-gradient(180deg,rgba(88,28,135,.15),rgba(17,8,32,.72));box-shadow:0 17px 22px rgba(0,0,0,.38); }
+.sanctuary-market-pedestal { position:relative;width:110px;min-width:110px;height:155px;display:flex;align-items:flex-end;justify-content:center;border-bottom:12px solid #4a2444;background:linear-gradient(90deg,transparent 10%,rgba(88,28,135,.18) 11% 89%,transparent 90%);scroll-snap-align:center; }
+.sanctuary-market-pedestal .sanctuary-scene-object { margin-bottom:8px; }
+.pedestal-price { position:absolute;z-index:8;top:0;right:2px;display:flex;align-items:center;gap:2px;padding:3px 5px;border:1px solid rgba(250,204,21,.36);border-radius:7px;color:#fde68a;background:rgba(66,32,6,.87);font-size:8px;font-weight:900; }
+.pedestal-price svg { width:10px;height:10px; }
+
+/* Traveler */
+.traveler-room { background:linear-gradient(180deg,#0b1534,#17103e 55%,#080713); }
+.traveler-world { justify-content:center;gap:55px;padding-left:80px;padding-right:80px; }
+.traveler-spaceport { position:absolute;inset:0;background-image:radial-gradient(circle at 10% 20%,#fff 0 1px,transparent 1.6px),radial-gradient(circle at 80% 35%,#c4b5fd 0 1px,transparent 1.7px);background-size:180px 150px,270px 210px;opacity:.5; }
+.landing-horizon { position:absolute;left:0;right:0;bottom:26%;height:34%;background:radial-gradient(ellipse at 50% 100%,rgba(168,85,247,.32),transparent 62%);border-bottom:2px solid rgba(192,132,252,.52); }
+.landing-floor { height:29%;border-color:rgba(192,132,252,.6);background:repeating-radial-gradient(ellipse at 50% 160%,transparent 0 79px,rgba(192,132,252,.08) 80px 82px),linear-gradient(180deg,#25203d,#0a0914); }
+.sanctuary-traveler-npc { position:relative;z-index:6;width:220px;height:230px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:10px 10px 15px;border:1px solid transparent;border-radius:50% 50% 16px 16px;color:#fff;background:transparent;cursor:pointer;transition:180ms ease; }
+.sanctuary-traveler-npc:hover,.sanctuary-traveler-npc.is-selected { border-color:rgba(192,132,252,.5);background:linear-gradient(180deg,transparent,rgba(88,28,135,.28));filter:drop-shadow(0 0 18px rgba(192,132,252,.35));transform:translateY(-5px); }
+.traveler-ship { position:absolute;z-index:0;top:-75px;font-size:125px;opacity:.3;filter:blur(.2px) drop-shadow(0 0 22px #a855f7); }
+.traveler-avatar { position:relative;z-index:2;font-size:88px;line-height:1;filter:drop-shadow(0 9px 6px rgba(0,0,0,.55)); }
+.sanctuary-traveler-npc strong { z-index:2;margin-top:8px;font-size:13px; }
+.sanctuary-traveler-npc small { z-index:2;margin-top:2px;color:#c4b5fd;font-size:9px;font-weight:700; }
+.sanctuary-traveler-npc em { z-index:2;display:flex;align-items:center;gap:4px;margin-top:6px;color:#94a3b8;font-size:8px;font-style:normal;font-weight:700; }
+.sanctuary-traveler-npc em svg { width:11px;height:11px; }
+.sanctuary-offer-platforms { position:relative;z-index:6;display:flex;align-items:flex-end;gap:17px;padding:17px 18px 10px;border:1px solid rgba(192,132,252,.25);border-bottom:6px solid #4c1d95;border-radius:16px 16px 5px 5px;background:rgba(30,16,60,.38); }
+.sanctuary-offer-platform { position:relative;width:130px;height:165px;display:flex;align-items:flex-end; }
+.offer-rarity { position:absolute;z-index:8;top:2px;left:50%;padding:3px 7px;border:1px solid rgba(192,132,252,.36);border-radius:6px;color:#ddd6fe;background:#2e1065;font-size:7px;font-weight:950;letter-spacing:.12em;transform:translateX(-50%); }
+.rarity-mythic .offer-rarity { color:#fde68a;border-color:rgba(251,191,36,.45);background:#451a03; }
+.rarity-exotic .offer-rarity { color:#f5d0fe;border-color:rgba(217,70,239,.45);background:#4a044e; }
+.rarity-rare .offer-rarity { color:#bae6fd;border-color:rgba(56,189,248,.45);background:#082f49; }
+.sanctuary-empty-landing { position:relative;z-index:4;color:#94a3b8;font-size:13px;font-weight:700; }
+
+/* Contextual conversations replacing old modal menus */
+.sanctuary-dialogue {
+  position:absolute;
+  z-index:80;
+  left:50%;
+  bottom:max(18px,env(safe-area-inset-bottom));
+  width:min(920px,calc(100vw - 34px));
+  min-height:112px;
+  display:grid;
+  grid-template-columns:auto minmax(180px,1fr) auto;
+  align-items:center;
+  gap:16px;
+  padding:14px 48px 14px 15px;
+  border:1px solid color-mix(in srgb,var(--biome-color) 36%,rgba(148,163,184,.3));
+  border-radius:20px;
+  background:linear-gradient(145deg,rgba(4,10,25,.96),rgba(15,23,42,.92));
+  box-shadow:0 20px 70px rgba(0,0,0,.62),inset 0 1px rgba(255,255,255,.07),0 0 30px color-mix(in srgb,var(--biome-color) 8%,transparent);
+  backdrop-filter:blur(20px);
+  transform:translateX(-50%);
+  animation:sanctuary-dialogue-in 220ms cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes sanctuary-dialogue-in { from { opacity:0;transform:translate(-50%,18px) scale(.97); } }
+.sanctuary-dialogue-close { position:absolute;top:9px;right:9px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(148,163,184,.2);border-radius:9px;color:#94a3b8;background:rgba(30,41,59,.7);cursor:pointer; }
+.sanctuary-dialogue-close:hover { color:#fff;background:#334155; }
+.sanctuary-dialogue-close svg { width:14px;height:14px; }
+.sanctuary-dialogue-portrait { width:78px;height:78px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(125,211,252,.32);border-radius:17px;color:#bae6fd;background:radial-gradient(circle,color-mix(in srgb,var(--biome-color) 20%,#111827),#030712);box-shadow:inset 0 0 22px rgba(56,189,248,.08);font-size:45px; }
+.sanctuary-dialogue-portrait img { width:90%;height:90%;object-fit:contain; }
+.sanctuary-dialogue-portrait svg { width:33px;height:33px; }
+.sanctuary-dialogue-copy { min-width:0; }
+.sanctuary-dialogue-eyebrow { display:block;color:color-mix(in srgb,var(--biome-color) 65%,#bae6fd);font-size:8px;font-weight:950;letter-spacing:.15em; }
+.sanctuary-dialogue-copy h3 { margin:3px 0 4px;color:#fff;font-size:15px;font-weight:900;line-height:1.1; }
+.sanctuary-dialogue-copy p { margin:0;max-width:570px;color:#b6c2d2;font-size:10px;font-weight:550;line-height:1.45; }
+.sanctuary-dialogue-actions { min-width:150px;display:flex;flex-direction:column;align-items:stretch;gap:7px; }
+.sanctuary-action { min-height:34px;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 11px;border:1px solid rgba(148,163,184,.28);border-radius:10px;color:#dbeafe;background:#1e293b;font-size:10px;font-weight:900;white-space:nowrap;cursor:pointer;transition:150ms ease; }
+.sanctuary-action:hover { color:#fff;border-color:rgba(125,211,252,.5);background:#334155;transform:translateY(-1px); }
+.sanctuary-action.primary { border-color:color-mix(in srgb,var(--biome-color) 65%,#38bdf8);color:#02130c;background:linear-gradient(135deg,var(--biome-color),#67e8f9);box-shadow:0 6px 18px color-mix(in srgb,var(--biome-color) 18%,transparent); }
+.sanctuary-action:disabled { opacity:.45;filter:grayscale(.8);cursor:not-allowed;transform:none; }
+.sanctuary-action svg { width:14px;height:14px; }
+.sanctuary-cost-line { display:flex;flex-wrap:wrap;justify-content:center;gap:4px; }
+.sanctuary-cost-line span { padding:3px 5px;border:1px solid rgba(52,211,153,.25);border-radius:6px;color:#a7f3d0;background:rgba(6,78,59,.25);font-size:8px;font-weight:800;white-space:nowrap; }
+.sanctuary-cost-line span.is-short { color:#fecdd3;border-color:rgba(251,113,133,.3);background:rgba(136,19,55,.2); }
+.sanctuary-free,.sanctuary-complete,.sanctuary-selected-note { display:flex;align-items:center;justify-content:center;gap:5px;color:#a7f3d0;font-size:9px;font-weight:800; }
+.sanctuary-complete svg,.sanctuary-selected-note svg { width:13px;height:13px; }
+.sanctuary-name-input { width:185px;height:34px;padding:0 9px;border:1px solid rgba(125,211,252,.4);border-radius:9px;color:#fff;background:#020617;font-size:11px;font-weight:800;outline:none; }
+.sanctuary-name-input:focus { border-color:#38bdf8;box-shadow:0 0 0 2px rgba(56,189,248,.12); }
+.sanctuary-progress { width:180px;height:8px;overflow:hidden;border:1px solid rgba(52,211,153,.25);border-radius:999px;background:#020617; }
+.sanctuary-progress span { display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#10b981,#fbbf24);box-shadow:0 0 9px rgba(52,211,153,.4);transition:width 1s linear; }
+
+.sanctuary-back-to-town { position:absolute;z-index:60;left:18px;bottom:max(16px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:6px;padding:8px 11px;border:1px solid rgba(148,163,184,.25);border-radius:11px;color:#cbd5e1;background:rgba(3,7,18,.84);font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer;backdrop-filter:blur(10px); }
+.sanctuary-back-to-town:hover { color:#fff;border-color:rgba(125,211,252,.55); }
+.sanctuary-back-to-town svg { width:14px;height:14px; }
+.sanctuary-screen-label { position:absolute;z-index:50;right:18px;bottom:max(18px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:5px;color:rgba(148,163,184,.58);font-size:8px;font-weight:750;pointer-events:none; }
+.sanctuary-screen-label svg { width:11px;height:11px; }
+
+@media (max-width: 760px) {
+  .sanctuary-topbar { top:max(7px,env(safe-area-inset-top));left:7px;right:7px;min-height:51px;padding:6px 7px;border-radius:15px; }
+  .sanctuary-location { gap:6px; }
+  .sanctuary-location-mark { width:34px;height:34px;border-radius:11px; }
+  .sanctuary-location span { max-width:34vw;font-size:12px; }
+  .sanctuary-location small { font-size:7px; }
+  .sanctuary-icon-button { width:34px;height:34px;border-radius:10px; }
+  .sanctuary-wallet { gap:4px; }
+  .sanctuary-wallet > span { height:30px;padding:0 7px;font-size:9px; }
+  .sanctuary-wallet > span:first-child { display:none; }
+  .sanctuary-wallet svg { width:13px;height:13px; }
+  .sanctuary-notice { top:max(67px,calc(env(safe-area-inset-top) + 59px));font-size:10px; }
+  .sanctuary-building { height:min(44vh,350px); }
+  .sanctuary-building-name { top:0; }
+  .sanctuary-room-title { top:max(68px,calc(env(safe-area-inset-top) + 60px));left:12px; }
+  .sanctuary-room-title small { max-width:72vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .sanctuary-room-world { padding-top:115px;padding-left:35px;padding-right:35px;padding-bottom:max(95px,14vh);gap:35px; }
+  .sanctuary-dialogue { bottom:max(10px,env(safe-area-inset-bottom));width:calc(100vw - 16px);min-height:0;grid-template-columns:55px minmax(0,1fr);gap:9px;padding:10px 35px 10px 10px;border-radius:16px; }
+  .sanctuary-dialogue-portrait { width:55px;height:55px;border-radius:13px;font-size:32px; }
+  .sanctuary-dialogue-copy h3 { margin:2px 0;font-size:12px; }
+  .sanctuary-dialogue-copy p { max-height:43px;overflow-y:auto;font-size:8.5px;line-height:1.35; }
+  .sanctuary-dialogue-actions { grid-column:1/-1;min-width:0;display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:5px;overflow-x:auto; }
+  .sanctuary-dialogue-actions > * { flex:0 0 auto; }
+  .sanctuary-action { min-height:30px;padding:6px 9px;font-size:8.5px; }
+  .sanctuary-cost-line { flex-wrap:nowrap;justify-content:flex-start; }
+  .sanctuary-cost-line span { font-size:7px; }
+  .sanctuary-name-input { width:145px;height:30px; }
+  .sanctuary-progress { width:120px; }
+  .sanctuary-back-to-town,.sanctuary-screen-label { display:none; }
+  .desktop-walk-hint { display:none; }
+  .mobile-walk-hint { display:inline; }
+  .sanctuary-town-prompt { bottom:72px; }
+  .sanctuary-walk-controls { bottom:max(9px,env(safe-area-inset-bottom)); }
+}
+
+@media (max-height: 620px) {
+  .sanctuary-building { height:49vh; }
+  .sanctuary-building-name { padding:5px 10px; }
+  .sanctuary-room-world { padding-top:105px;padding-bottom:64px; }
+  .sanctuary-scene-object { transform:scale(.86);transform-origin:center bottom;margin-left:-8px;margin-right:-8px; }
+  .sanctuary-scene-object:hover,.sanctuary-scene-object.is-selected { transform:scale(.86) translateY(-7px); }
+  .sanctuary-dialogue { min-height:88px;padding-top:9px;padding-bottom:9px; }
+  .sanctuary-dialogue-portrait { width:60px;height:60px; }
+  .sanctuary-planter { transform:scale(.86);transform-origin:center bottom;margin-left:-6px;margin-right:-6px; }
+  .sanctuary-room-title { display:none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sanctuary-shell *,
+  .sanctuary-shell *::before,
+  .sanctuary-shell *::after { animation-duration:.01ms !important;animation-iteration-count:1 !important;scroll-behavior:auto !important; }
+}
+.sanctuary-planter .planter-plant { position:relative;z-index:3;width:78px;height:85px;display:flex;align-items:flex-end;justify-content:center;transform-origin:center bottom;transition:transform .25s ease; }
+.sanctuary-planter .planter-plant img { width:100%;height:100%;object-fit:contain; }

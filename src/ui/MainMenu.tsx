@@ -17,7 +17,9 @@ import {
   Compass,
   Swords,
   LogIn,
-  Award
+  Award,
+  Home,
+  Footprints
 } from 'lucide-react';
 import { UserSavedData } from '../types/game';
 import { ACHIEVEMENTS, CHECKPOINT_PLANETS, SECTOR_MILITARY_MEDALS } from '../core/Config';
@@ -345,7 +347,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               </div>
               <div className="min-w-0">
                 <span className="text-[9px] uppercase font-semibold text-emerald-400 tracking-wider block">
-                  Sovereign Base
+                  Sanctuary Town
                 </span>
                 <p className="text-xs font-semibold text-slate-200 truncate">
                   {savedData.homePlanet?.name || 'Sanctuary Prime'}
@@ -353,8 +355,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               </div>
             </div>
             <div className="px-2 py-0.5 rounded-lg bg-emerald-950/80 text-emerald-300 text-[11px] font-bold border border-emerald-500/30 flex items-center gap-1 transition shrink-0">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
-              <span>Base</span>
+              <Footprints className="w-3 h-3 text-emerald-400" />
+              <span>Town</span>
             </div>
           </button>
         </div>
@@ -412,6 +414,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             <span className="tracking-wider uppercase text-shadow-sm">1v1 Arena</span>
           </button>
         </div>
+
+        {/* Side-Scrolling Sanctuary Town Entry */}
+        <button
+          onClick={() => {
+            audioEngine.playMenuClick();
+            onOpenHomePlanet();
+          }}
+          className="relative overflow-hidden w-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400 hover:from-emerald-500 hover:to-amber-300 text-slate-950 font-black text-base py-3 px-4 rounded-2xl transition-all duration-300 shadow-[0_0_25px_rgba(16,185,129,0.35)] flex items-center justify-center gap-2.5 btn-grow hover:scale-[1.02] border border-emerald-300/40"
+          title="Walk around your side-scrolling sanctuary town: greenhouse, workshop, vault, market and more"
+        >
+          <Home className="w-5 h-5" />
+          <span className="tracking-wider uppercase text-shadow-sm">
+            Visit {savedData.homePlanet?.name || 'Sanctuary Town'}
+          </span>
+          <span className="hidden sm:flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-950/25 px-2 py-0.5 rounded-full">
+            <Footprints className="w-3 h-3" /> Walk & Explore
+          </span>
+        </button>
       </div>
 
       {/* Bottom Menu Navigation Bar */}
